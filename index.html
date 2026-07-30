@@ -1,0 +1,1980 @@
+<!DOCTYPE html>
+<html lang="ar" dir="rtl">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no">
+<title>Untek Go — 2D Game Editor</title>
+<style>
+  :root{
+    --bg:#1b1f27;
+    --panel:#232833;
+    --panel2:#2a303c;
+    --border:#3a4150;
+    --text:#dfe4ee;
+    --text-dim:#8b93a3;
+    --accent:#5aa9e6;
+    --accent2:#3d7cc9;
+    --ok:#5fd08a;
+    --danger:#e6615a;
+    --yellow:#e6b34d;
+    --blue:#4c8fe6;
+    --orange:#e6934d;
+    --purple:#9a6de6;
+    --cyan:#4dc0c8;
+    font-family:"Segoe UI",Roboto,Arial,sans-serif;
+  }
+  *{box-sizing:border-box;}
+  html,body{height:100%;margin:0;background:var(--bg);color:var(--text);overflow:hidden;user-select:none;}
+  #app{display:flex;flex-direction:column;height:100%;}
+
+  /* ---- Top bar (header: nom en haut, boutons en dessous) ---- */
+  #topbar{background:var(--panel);border-bottom:1px solid var(--border);display:flex;flex-direction:column;flex:none;}
+  .topbar-title{text-align:center;font-weight:700;letter-spacing:.5px;color:var(--accent);font-size:15px;padding:7px 10px 4px;display:flex;align-items:center;justify-content:center;gap:10px;}
+  .topbar-actions{display:flex;align-items:center;padding:6px 10px 8px;gap:8px;flex-wrap:wrap;justify-content:center;}
+  .btn{background:var(--panel2);border:1px solid var(--border);color:var(--text);padding:6px 14px;border-radius:5px;cursor:pointer;font-size:13px;display:flex;align-items:center;gap:6px;transition:.12s;white-space:nowrap;}
+  .btn:hover{background:#333b48;border-color:#4a5364;}
+  .btn.run{background:linear-gradient(180deg,#4fbf76,#39a05f);border-color:#2e8a4f;color:#0d1a10;font-weight:600;}
+  .btn.run:hover{filter:brightness(1.08);}
+  .btn.stop{background:linear-gradient(180deg,#e6746b,#c9534a);border-color:#a5443c;color:#210a08;font-weight:600;}
+  .spacer{flex:1;}
+  #status{font-size:11px;color:var(--text-dim);font-weight:400;white-space:nowrap;}
+
+  .nav-btn{padding:7px 16px;border:1px solid var(--border);background:var(--panel2);color:var(--text);cursor:pointer;font-size:13px;border-radius:6px;transition:background .2s,color .2s;font-weight:600;white-space:nowrap;}
+  .nav-btn:hover{background:#333b48;}
+  .nav-btn.active{background:var(--accent);color:#0d1a26;border-color:var(--accent);}
+  .icon-btn{font-size:19px;padding:7px 14px;line-height:1;}
+
+  #areaContainer{flex:1;min-height:0;position:relative;}
+  .area{display:none;position:absolute;inset:0;overflow:auto;}
+  .area.active{display:flex;}
+  #stage-wrap.area.active{display:flex;}
+  #objectsPanel.area.active{display:flex;}
+  #blockeditor.area.active{display:grid;}
+  #settingsPanel.area.active{display:flex;}
+
+  .panel{background:var(--panel);flex-direction:column;min-height:0;}
+  .panel-header{padding:8px 10px;font-size:11px;text-transform:uppercase;letter-spacing:.8px;color:var(--text-dim);border-bottom:1px solid var(--border);display:flex;justify-content:space-between;align-items:center;flex:none;}
+  .panel-header .add{cursor:pointer;color:var(--accent);font-size:16px;line-height:1;}
+  .panel-body{flex:1;overflow:auto;padding:6px;}
+  .sub-section{border-bottom:1px solid var(--border);}
+  .sub-header{font-size:10px;text-transform:uppercase;letter-spacing:.6px;color:var(--text-dim);padding:8px 6px 4px;}
+
+  /* scene list */
+  .sprite-item{display:flex;align-items:center;gap:8px;padding:6px 8px;border-radius:5px;cursor:pointer;font-size:13px;margin-bottom:2px;}
+  .sprite-item:hover{background:#2c3340;}
+  .sprite-item.selected{background:#31435f;color:#fff;}
+  .sprite-swatch{width:14px;height:14px;border-radius:3px;flex:none;border:1px solid rgba(255,255,255,.25);}
+  .sprite-item .name{flex:1;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;}
+  .sprite-item .del{opacity:0;color:var(--danger);font-size:14px;}
+  .sprite-item:hover .del{opacity:.8;}
+
+  /* stage */
+  #stage-wrap{background:#12151b;align-items:center;justify-content:center;overflow:hidden;flex-direction:column;position:relative;padding:0;}
+  #stage{background:#0e1116;box-shadow:0 0 0 1px var(--border), 0 8px 30px rgba(0,0,0,.5);}
+
+  /* inspector */
+  .field{margin-bottom:10px;}
+  .field label{display:block;font-size:11px;color:var(--text-dim);margin-bottom:3px;}
+  .field input[type=text], .field input[type=number]{width:100%;background:var(--panel2);border:1px solid var(--border);color:var(--text);padding:5px 7px;border-radius:4px;font-size:12px;}
+  .field input[type=color]{width:100%;height:28px;background:var(--panel2);border:1px solid var(--border);border-radius:4px;}
+  .field-row{display:flex;gap:8px;}
+  .field-row .field{flex:1;}
+  .empty-hint{color:var(--text-dim);font-size:12px;padding:10px;line-height:1.5;}
+
+  /* settings */
+  .setting-row{display:flex;align-items:center;justify-content:space-between;gap:10px;padding:10px 4px;border-bottom:1px solid var(--border);font-size:13px;}
+  .setting-row label{cursor:pointer;}
+  .setting-row input[type=checkbox]{width:18px;height:18px;}
+  .btn.danger{background:linear-gradient(180deg,#e6746b,#c9534a);border-color:#a5443c;color:#210a08;font-weight:600;}
+  .guide-card{border:1px solid var(--border);border-radius:6px;margin:8px 0;overflow:hidden;}
+  .guide-card-head{padding:7px 10px;font-weight:700;font-size:12.5px;color:#0e1116;}
+  .guide-card-body{padding:8px 10px;font-size:12.5px;color:var(--text-dim);line-height:1.6;background:var(--panel2);}
+
+  /* ---- Bottom: block editor ---- */
+  #blockeditor{grid-template-columns:1fr;grid-template-rows:auto 140px 1fr;min-height:0;}
+  #paletteSearchWrap{background:var(--panel);padding:8px 10px;border-bottom:1px solid var(--border);}
+  #paletteSearch{width:100%;background:var(--panel2);border:1px solid var(--border);color:var(--text);padding:8px 12px;border-radius:6px;font-size:13px;}
+  #paletteSearch::placeholder{color:var(--text-dim);}
+  #paletteSearch:focus{outline:none;border-color:var(--accent);}
+  .palette-block.search-hidden{display:none;}
+  #paletteNoResults{color:var(--text-dim);font-size:12px;padding:8px;display:none;}
+  #palette{background:var(--panel);display:flex;flex-direction:row;flex-wrap:nowrap;overflow-x:auto;overflow-y:hidden;padding:8px;border-bottom:1px solid var(--border);-webkit-overflow-scrolling:touch;}
+  .cat-title{display:none;}
+  .block.palette-block{display:flex;width:auto;flex:none;margin:0 6px 0 0;white-space:nowrap;}
+
+  .block{
+    display:inline-flex;align-items:center;gap:5px;flex-wrap:wrap;
+    padding:6px 10px;border-radius:6px;color:#0e1116;font-size:12.5px;font-weight:600;
+    cursor:grab;line-height:1.3;box-shadow:0 1px 0 rgba(0,0,0,.25) inset, 0 1px 2px rgba(0,0,0,.35);
+    border-bottom:3px solid rgba(0,0,0,.2);
+  }
+  .block input, .block select{
+    background:rgba(255,255,255,.85);border:none;border-radius:10px;padding:1px 6px;font-size:12px;color:#111;width:44px;text-align:center;
+  }
+  .block select{width:auto;max-width:150px;}
+  .b-event{background:var(--yellow);}
+  .b-motion{background:var(--blue);color:#fff;}
+  .b-motion input{color:#111;}
+  .b-control{background:var(--orange);}
+  .b-looks{background:var(--purple);color:#fff;}
+  .b-function{background:var(--cyan);color:#0e1116;}
+  .b-camera{background:#e685b0;color:#0e1116;}
+  .b-scene{background:#7fd1a8;color:#0e1116;}
+  .b-costume{background:#d9a441;color:#0e1116;}
+  .b-sound{background:#8b7ae6;color:#fff;}
+  .b-saveload{background:#56b0d4;color:#0e1116;}
+  .b-custom{background:#c97de6;color:#0e1116;}
+  .b-ai{background:#e6844d;color:#0e1116;}
+  .b-player{background:#4d9ee6;color:#fff;}
+  .b-events{background:#e6d44d;color:#0e1116;}
+  .unl-edit-btn{background:rgba(0,0,0,.22);border:1px solid rgba(255,255,255,.3);color:inherit;border-radius:5px;padding:3px 10px;font-size:11.5px;font-weight:700;cursor:pointer;}
+  .unl-edit-btn:hover{background:rgba(0,0,0,.35);}
+
+  #unlModalOverlay{display:none;position:fixed;inset:0;background:rgba(0,0,0,.7);z-index:2000;align-items:center;justify-content:center;padding:10px;}
+  #unlModalOverlay.open{display:flex;}
+  #unlModalBox{background:#1a1e28;border:1px solid var(--border);border-radius:10px;width:100%;max-width:780px;height:92vh;display:flex;flex-direction:column;box-shadow:0 24px 80px rgba(0,0,0,.7);overflow:hidden;}
+  #unlModalHeader{padding:10px 14px;border-bottom:1px solid var(--border);display:flex;align-items:center;justify-content:space-between;background:#13161f;flex:none;}
+  #unlModalHeader span{font-weight:700;color:var(--accent);font-size:14px;display:flex;align-items:center;gap:8px;}
+  .unl-header-actions{display:flex;align-items:center;gap:6px;}
+  #unlLangSwitch{background:var(--panel2);border:1px solid var(--border);color:var(--text);padding:4px 8px;border-radius:5px;font-size:12px;cursor:pointer;}
+  #unlEditorTabs{display:flex;background:#13161f;border-bottom:1px solid var(--border);flex:none;}
+  .unl-etab{padding:9px 16px;border:none;background:transparent;color:var(--text-dim);cursor:pointer;font-size:13px;font-weight:600;border-bottom:2px solid transparent;transition:.15s;}
+  .unl-etab:hover{color:var(--text);}
+  .unl-etab.active{color:var(--accent);border-bottom-color:var(--accent);background:rgba(90,169,230,.07);}
+  .unl-epanel{display:none;flex:1;min-height:0;flex-direction:column;}
+  .unl-epanel.active{display:flex;}
+
+  /* Code editor */
+  #unlPanelCode{position:relative;}
+  #unlEditorWrap{flex:1;position:relative;overflow:hidden;display:flex;min-height:0;}
+  #unlLineNums{width:40px;background:#13161f;color:#4a5568;font-family:'Courier New',monospace;font-size:13px;line-height:1.6;padding:10px 6px;text-align:right;flex:none;overflow:hidden;user-select:none;border-right:1px solid var(--border);}
+  #unlHighlight{position:absolute;left:40px;top:0;right:0;bottom:0;padding:10px 12px;font-family:'Courier New',monospace;font-size:13px;line-height:1.6;pointer-events:none;white-space:pre;overflow:auto;color:transparent;}
+  #unlModalTextarea{position:absolute;left:40px;top:0;right:0;bottom:0;padding:10px 12px;font-family:'Courier New',monospace;font-size:13px;line-height:1.6;background:transparent;border:none;color:var(--text);resize:none;outline:none;caret-color:#fff;overflow:auto;z-index:1;white-space:pre;}
+  #unlToolbar{flex:none;display:flex;flex-wrap:wrap;gap:5px;padding:7px 10px;background:#13161f;border-top:1px solid var(--border);}
+  .unl-tool-btn{background:var(--panel2);border:1px solid var(--border);color:var(--text);padding:4px 10px;border-radius:5px;cursor:pointer;font-size:12px;white-space:nowrap;}
+  .unl-tool-btn:hover{background:#333b48;}
+  #unlRunBtn{background:linear-gradient(180deg,#4fbf76,#39a05f);border-color:#2e8a4f;color:#0d1a10;font-weight:700;margin-right:0;margin-left:auto;}
+
+  /* Syntax colors */
+  .syn-kw{color:#c792ea;} .syn-fn{color:#82aaff;} .syn-str{color:#c3e88d;} .syn-num{color:#f78c6c;}
+  .syn-cmt{color:#546e7a;font-style:italic;} .syn-op{color:#89ddff;} .syn-tag{color:#ffcb6b;} .syn-const{color:#f78c6c;}
+
+  /* Nodes */
+  #unlPanelNodes{overflow:hidden;}
+  #unlNodeCanvas{flex:1;position:relative;background:radial-gradient(circle,#1f2435 0%,#13161f 100%);overflow:hidden;}
+  .unl-node-hint{position:absolute;top:12px;left:50%;transform:translateX(-50%);color:var(--text-dim);font-size:12px;pointer-events:none;}
+  #unlNodeArea{position:absolute;inset:0;}
+  #unlNodeToolbar{position:absolute;bottom:12px;left:50%;transform:translateX(-50%);display:flex;gap:8px;background:rgba(0,0,0,.5);padding:8px 12px;border-radius:8px;backdrop-filter:blur(4px);}
+  .unl-node{position:absolute;border-radius:8px;padding:8px 14px;font-size:12px;font-weight:700;cursor:grab;min-width:100px;box-shadow:0 4px 16px rgba(0,0,0,.4);border:1px solid rgba(255,255,255,.15);user-select:none;}
+  .unl-node.dragging{cursor:grabbing;z-index:100;box-shadow:0 8px 30px rgba(0,0,0,.6);}
+  .unl-node-title{font-size:11px;opacity:.7;margin-bottom:4px;}
+  .unl-node-port{width:10px;height:10px;border-radius:50%;background:#5aa9e6;border:2px solid #fff;display:inline-block;cursor:crosshair;}
+  .unl-node-row{display:flex;align-items:center;justify-content:space-between;gap:8px;}
+  svg.unl-connections{position:absolute;inset:0;pointer-events:none;overflow:visible;}
+
+  /* Animation */
+  #unlPanelAnim{overflow:auto;}
+  #unlAnimPanel{padding:12px;display:flex;flex-direction:column;gap:10px;height:100%;}
+  .unl-anim-header{display:flex;align-items:center;justify-content:space-between;font-weight:700;font-size:13px;}
+  #unlAnimList{display:flex;flex-direction:column;gap:6px;max-height:180px;overflow-y:auto;}
+  .unl-anim-item{background:var(--panel2);border:1px solid var(--border);border-radius:6px;padding:8px 12px;display:flex;align-items:center;gap:10px;cursor:pointer;}
+  .unl-anim-item.selected{border-color:var(--accent);}
+  .unl-anim-swatch{width:22px;height:22px;border-radius:4px;flex:none;}
+  #unlAnimPreview{display:flex;flex-direction:column;align-items:center;gap:10px;margin-top:8px;}
+  #unlAnimCanvas{background:#0e1116;border:1px solid var(--border);border-radius:6px;}
+  #unlAnimControls{display:flex;align-items:center;gap:10px;}
+
+  /* Console */
+  #unlPanelConsole{background:#0e1116;}
+  #unlConsoleOutput{flex:1;overflow-y:auto;padding:10px;font-family:'Courier New',monospace;font-size:12.5px;line-height:1.7;}
+  .con-line{padding:1px 0;} .con-out{color:#c3e88d;} .con-err{color:#e6615a;} .con-info{color:#82aaff;} .con-in{color:#ffcb6b;}
+  #unlConsoleInput{display:flex;align-items:center;gap:8px;padding:8px 12px;background:#13161f;border-top:1px solid var(--border);flex:none;}
+  #unlConsoleInput span{color:var(--accent);font-family:monospace;font-size:14px;}
+  #unlConsoleCmd{flex:1;background:transparent;border:none;color:var(--text);font-family:'Courier New',monospace;font-size:13px;outline:none;}
+
+  #unlModalFooter{flex:none;padding:8px 14px;border-top:1px solid var(--border);background:#13161f;display:flex;align-items:center;justify-content:space-between;}
+  #unlStatusBar{font-size:11px;color:var(--text-dim);}
+  #aiModalOverlay{display:none;position:fixed;inset:0;background:rgba(0,0,0,.65);z-index:2001;align-items:center;justify-content:center;padding:20px;}
+  #aiModalOverlay.open{display:flex;}
+  #aiModalBox{background:var(--panel);border:1px solid var(--border);border-radius:10px;width:100%;max-width:640px;display:flex;flex-direction:column;max-height:85vh;box-shadow:0 20px 60px rgba(0,0,0,.6);}
+  #aiModalHeader{padding:12px 16px;border-bottom:1px solid var(--border);font-weight:700;font-size:14px;color:var(--accent);}
+  .ai-tabs{display:flex;border-bottom:1px solid var(--border);}
+  .ai-tab{padding:8px 18px;cursor:pointer;font-size:13px;font-weight:600;color:var(--text-dim);border-bottom:2px solid transparent;}
+  .ai-tab.active{color:var(--accent);border-bottom-color:var(--accent);}
+  .ai-panel{display:none;flex:1;}
+  .ai-panel.active{display:flex;}
+  .ai-textarea{flex:1;min-height:280px;margin:12px 16px;background:var(--panel2);border:1px solid var(--border);color:var(--text);border-radius:6px;padding:10px;font-family:'Courier New',monospace;font-size:13px;resize:vertical;}
+  #aiModalFooter{padding:10px 16px 16px;display:flex;justify-content:flex-end;gap:10px;}
+
+  #workspace{position:relative;overflow:auto;background:
+      linear-gradient(var(--panel2) 1px,transparent 1px) 0 0/100% 22px,
+      var(--bg);
+  }
+  #workspace-inner{position:relative;min-height:100%;padding:16px;}
+  .stack{position:relative;}
+  .stack-slot{min-height:6px;}
+  .stack-slot.drop-hover{background:rgba(90,169,230,.25);border-radius:4px;}
+  .placed-block{margin:3px 0;position:relative;}
+  .placed-block > .block{width:100%;justify-content:flex-start;cursor:grab;}
+  .placed-block.dragging{opacity:.35;}
+  .c-body{margin-left:22px;border-left:3px dashed rgba(0,0,0,.25);padding-left:6px;min-height:14px;}
+  .remove-x{margin-left:auto;background:rgba(0,0,0,.18);border-radius:50%;width:16px;height:16px;display:flex;align-items:center;justify-content:center;font-size:11px;cursor:pointer;flex:none;}
+  .remove-x:hover{background:rgba(0,0,0,.35);}
+  #trash-hint{font-size:11px;color:var(--text-dim);position:absolute;bottom:6px;right:10px;}
+  ::-webkit-scrollbar{width:10px;height:10px;}
+  ::-webkit-scrollbar-thumb{background:#3a4150;border-radius:6px;}
+  ::-webkit-scrollbar-track{background:transparent;}
+
+  /* drag ghost + touch support */
+  .block, .stack-slot{touch-action:none;}
+  .drag-ghost{position:fixed;pointer-events:none;z-index:9999;opacity:.85;transform:translate(-8px,-8px);}
+  .remove-x{touch-action:manipulation;}
+
+  /* ---- Responsive / mobile portrait ---- */
+  @media (max-width:900px){
+    #topbar{padding:6px 8px;gap:6px;min-height:44px;}
+    .topbar-title{font-size:13px;}
+    #status{display:none;}
+    .btn{padding:7px 10px;font-size:12.5px;}
+    .nav-btn{padding:6px 10px;font-size:12px;}
+    .block input, .block select{min-height:22px;}
+    .remove-x{width:20px;height:20px;font-size:13px;}
+  }
+
+  /* ---- Mobile landscape (short viewport height) ---- */
+  @media (max-height:500px) and (orientation:landscape){
+    #topbar{min-height:36px;padding:4px 8px;gap:6px;}
+    .topbar-title{font-size:12px;}
+    #status{display:none;}
+    .btn{padding:4px 9px;font-size:11.5px;}
+    .nav-btn{padding:4px 9px;font-size:11px;}
+    #stage{width:100%;height:auto;max-width:480px;}
+    #blockeditor{grid-template-rows:auto 76px 1fr;}
+    #paletteSearchWrap{padding:4px 8px;}
+    #paletteSearch{padding:5px 8px;font-size:12px;}
+    #palette{padding:4px;}
+    .block{padding:4px 7px;font-size:11px;}
+    .panel-header{padding:5px 8px;font-size:10px;}
+    .sub-header{padding:5px 6px 2px;}
+    .setting-row{padding:6px 4px;}
+  }
+</style>
+</head>
+<body>
+<div id="app">
+  <header id="topbar">
+    <div class="topbar-title">◆ Untek Go <span id="status">Ready</span></div>
+    <div class="topbar-actions">
+      <button class="btn run icon-btn" id="btnToggleRun" title="Run">▶</button>
+      <div class="spacer"></div>
+      <button class="nav-btn icon-btn" data-area="area-interface" id="navInterface" onclick="showArea('area-interface')" title="Interface">🎮</button>
+      <button class="nav-btn icon-btn" data-area="area-objects" id="navObjects" onclick="showArea('area-objects')" title="Objects">🧍</button>
+      <button class="nav-btn icon-btn" data-area="area-blocks" id="navBlocks" onclick="showArea('area-blocks')" title="Blocks">🧩</button>
+      <button class="nav-btn icon-btn" data-area="area-settings" id="navSettings" onclick="showArea('area-settings')" title="Settings">⚙️</button>
+    </div>
+  </header>
+
+  <div id="areaContainer">
+    <div id="stage-wrap" class="area" data-area-id="area-interface">
+      <canvas id="stage" width="480" height="360"></canvas>
+    </div>
+
+    <div class="panel area" id="objectsPanel" data-area-id="area-objects">
+      <div class="panel-header"><span id="objectsTitle">Objects</span><span class="add" id="btnAddSprite2" title="Add a sprite">+</span></div>
+      <div class="panel-body">
+        <div class="sub-section">
+          <div class="sub-header" id="sceneTitle">Scene</div>
+          <div id="spriteList"></div>
+        </div>
+        <div class="sub-section" style="border-bottom:none;">
+          <div class="sub-header" id="inspectorTitle">Inspector</div>
+          <div id="inspectorBody"></div>
+        </div>
+      </div>
+    </div>
+
+    <div id="blockeditor" class="area" data-area-id="area-blocks">
+      <div id="paletteSearchWrap">
+        <input type="text" id="paletteSearch" placeholder="Search blocks...">
+      </div>
+      <div id="palette"></div>
+      <div id="workspace">
+        <div id="workspace-inner"><div class="stack" id="stackRoot"></div></div>
+        <div id="trash-hint">Drag a block out of the area to delete it</div>
+      </div>
+    </div>
+
+    <div class="panel area" id="settingsPanel" data-area-id="area-settings">
+      <div class="panel-header"><span id="settingsTitle">Settings</span></div>
+      <div class="panel-body" id="settingsBody"></div>
+    </div>
+  </div>
+</div>
+
+<div id="unlModalOverlay">
+  <div id="unlModalBox">
+    <div id="unlModalHeader">
+      <span>📄 <span id="unlFileName">script.unl</span></span>
+      <div class="unl-header-actions">
+        <select id="unlLangSwitch" title="Language">
+          <option value="unl">.unl</option>
+          <option value="js">.js</option>
+          <option value="csharp">.cs</option>
+        </select>
+        <button class="btn icon-btn" id="unlDownloadBtn" title="Download file">⬇</button>
+        <button class="btn icon-btn" id="unlModalCancel" title="Close">✕</button>
+      </div>
+    </div>
+    <div id="unlEditorTabs">
+      <button class="unl-etab active" data-panel="code">📝 Code</button>
+      <button class="unl-etab" data-panel="nodes">🔗 Nodes</button>
+      <button class="unl-etab" data-panel="anim">🎬 Animation</button>
+      <button class="unl-etab" data-panel="console">💬 Console</button>
+    </div>
+    <div id="unlPanelCode" class="unl-epanel active">
+      <div id="unlEditorWrap">
+        <div id="unlLineNums"></div>
+        <div id="unlHighlight" aria-hidden="true"></div>
+        <textarea id="unlModalTextarea" spellcheck="false" autocorrect="off" autocapitalize="off"></textarea>
+      </div>
+      <div id="unlToolbar">
+        <button class="unl-tool-btn" onclick="unlInsert('un.game\n\n\nunteck run.u(bg)')">🏁 Template</button>
+        <button class="unl-tool-btn" onclick="unlInsert('// ')">// Comment</button>
+        <button class="unl-tool-btn" onclick="unlInsert('/* \n\n*/')">/* Block */</button>
+        <button class="unl-tool-btn" onclick="unlInsert('If(condition)={\n    \n}:\n')">If</button>
+        <button class="unl-tool-btn" onclick="unlInsert('Elif(condition)={\n    \n}:\n')">Elif</button>
+        <button class="unl-tool-btn" onclick="unlInsert('Else={\n    \n}:\n')">Else</button>
+        <button class="unl-tool-btn" onclick="unlInsert('While.t;(loop)+[\n    \n]:\n')">While T</button>
+        <button class="unl-tool-btn" onclick="unlInsert('While.f;(loop)+[\n    \n]:\n')">While F</button>
+        <button class="unl-tool-btn" onclick="unlInsert('for item in list={\n    print(item)\n}:\n')">For</button>
+        <button class="unl-tool-btn" onclick="unlInsert('Break(loop)')">Break</button>
+        <button class="unl-tool-btn" onclick="unlInsert('print("")')">Print</button>
+        <button class="unl-tool-btn" id="unlRunBtn">▶ Run</button>
+      </div>
+    </div>
+    <div id="unlPanelNodes" class="unl-epanel">
+      <div id="unlNodeCanvas">
+        <div class="unl-node-hint">🔗 Node editor — drag to connect logic</div>
+        <div id="unlNodeArea"></div>
+        <div id="unlNodeToolbar">
+          <button class="unl-tool-btn" onclick="addUnlNode('start','▶ Start','b-event')">+ Start</button>
+          <button class="unl-tool-btn" onclick="addUnlNode('action','Action','b-motion')">+ Action</button>
+          <button class="unl-tool-btn" onclick="addUnlNode('condition','If','b-control')">+ If</button>
+          <button class="unl-tool-btn" onclick="addUnlNode('loop','While','b-control')">+ While</button>
+          <button class="unl-tool-btn" onclick="addUnlNode('print','Print','b-looks')">+ Print</button>
+          <button class="unl-tool-btn" onclick="addUnlNode('var','Variable','b-function')">+ Var</button>
+        </div>
+      </div>
+    </div>
+    <div id="unlPanelAnim" class="unl-epanel">
+      <div id="unlAnimPanel">
+        <div class="unl-anim-header">
+          <span>🎬 Player Animations</span>
+          <button class="btn" id="btnAddAnim">+ Add</button>
+        </div>
+        <div id="unlAnimList"></div>
+        <div id="unlAnimPreview">
+          <canvas id="unlAnimCanvas" width="200" height="200"></canvas>
+          <div id="unlAnimControls">
+            <button class="unl-tool-btn" id="unlAnimPlay">▶</button>
+            <button class="unl-tool-btn" id="unlAnimStop">■</button>
+            <label>FPS <input type="number" id="unlAnimFps" value="4" min="1" max="60" style="width:50px;background:var(--panel2);border:1px solid var(--border);color:var(--text);padding:3px;border-radius:4px;"></label>
+          </div>
+        </div>
+      </div>
+    </div>
+    <div id="unlPanelConsole" class="unl-epanel">
+      <div id="unlConsoleOutput"></div>
+      <div id="unlConsoleInput">
+        <span>&gt;</span>
+        <input type="text" id="unlConsoleCmd" placeholder="Run UNL expression…" spellcheck="false">
+        <button class="unl-tool-btn" id="unlConsoleSend">↵</button>
+      </div>
+    </div>
+    <div id="unlModalFooter">
+      <span id="unlStatusBar">UNL v1.0 — Untek Go</span>
+      <button class="btn run" id="unlModalSave">💾 Save</button>
+    </div>
+  </div>
+</div>
+
+<div id="aiModalOverlay">
+  <div id="aiModalBox">
+    <div id="aiModalHeader">🤖 Create AI Script</div>
+    <div class="ai-tabs">
+      <div class="ai-tab active" data-lang="csharp">C#</div>
+      <div class="ai-tab" data-lang="js">JavaScript</div>
+      <div class="ai-tab" data-lang="unl">UNL</div>
+    </div>
+    <div class="ai-panel active" data-panel="csharp"><textarea class="ai-textarea" id="aiCsharp" placeholder="// Write your AI logic in C#...&#10;// (execution requires a C# runtime)"></textarea></div>
+    <div class="ai-panel" data-panel="js"><textarea class="ai-textarea" id="aiJs" placeholder="// Write your AI logic in JavaScript...&#10;// (this code can run directly in the game)"></textarea></div>
+    <div class="ai-panel" data-panel="unl"><textarea class="ai-textarea" id="aiUnl" placeholder="// Write your AI logic in UNL (.unl)...&#10;// (UNL interpreter coming soon)"></textarea></div>
+    <div id="aiModalFooter">
+      <button class="btn" id="aiModalCancel">Cancel</button>
+      <button class="btn run" id="aiModalSave">Save</button>
+    </div>
+  </div>
+</div>
+
+<script>
+/* ======================= DATA MODEL ======================= */
+const KEYNAMES = {ArrowUp:'up',ArrowDown:'down',ArrowLeft:'left',ArrowRight:'right',' ':'space',Enter:'enter'};
+function resolveKey(e){
+  if(KEYNAMES[e.key]!==undefined) return KEYNAMES[e.key];
+  if(e.key && e.key.length===1) return e.key.toLowerCase();
+  return null;
+}
+const SPECIAL_KEYS = [['right','keyRight'],['left','keyLeft'],['up','keyUp'],['down','keyDown'],['space','keySpace'],['enter','keyEnter']];
+function buildKeyOptions(){
+  const opts = SPECIAL_KEYS.map(([v,lk])=>[v, t(lk)]);
+  for(let c=97;c<=122;c++){ const ch=String.fromCharCode(c); opts.push([ch, ch.toUpperCase()]); }
+  for(let n=0;n<=9;n++){ opts.push([''+n, ''+n]); }
+  return opts;
+}
+
+/* ---- i18n ---- */
+let LANG = 'ar';
+const I18N = {
+  ar:{
+    subtitle:'محرر ألعاب ثنائي الأبعاد بالقطع', addSprite:'+ عنصر جديد', ready:'جاهز', running:'قيد التشغيل…', stopped:'متوقف',
+    run:'▶ تشغيل', stop:'■ إيقاف', scene:'المشهد', addSpriteTitle:'أضف عنصرًا', inspector:'الخصائص', objects:'الكائنات', noSprite:'لا يوجد عنصر محدد.',
+    interfaceTab:'الواجهة', blocksTab:'البلوك', settingsTab:'الإعدادات', settingsTitle:'الإعدادات', showGrid:'إظهار الشبكة في الواجهة', resetProject:'إعادة تعيين المشروع', resetConfirm:'هل تريد فعلاً إعادة تعيين المشروع؟ سيُحذف كل شيء.', guideTitle:'دليل القوالب', language:'اللغة', searchPlaceholder:'ابحث عن قالب…', noResults:'لا توجد نتائج',
+    name:'الاسم', posX:'س', posY:'ص', rotation:'الدوران (°)', color:'اللون', shape:'الشكل', square:'مربع', circle:'دائرة',
+    catEvent:'الأحداث', catMotion:'الحركة', catControl:'التحكم', catLooks:'المظهر', catFunction:'الدوال (UNL)', catCamera:'الكاميرا', catScene:'المشهد', defineFunction:'تعريف دالة UNL باسم', gotoMouse:'اذهب إلى موضع الفأرة', gotoTouch:'اذهب إلى موضع اللمس', createCamera:'إنشاء كاميرا', moveCamera:'حرّك الكاميرا بمقدار x:', evClick:'يُنقر عليه', evTouch:'يُلمس',
+    rotateCamera:'دوّر الكاميرا', degSuffix:'درجة', zoomInCamera:'كبّر الكاميرا بمقدار', zoomOutCamera:'صغّر الكاميرا بمقدار', cameraShake:'اهتز الكاميرا بشدة', secSuffix:'ثانية', trackCamera:'تتبع الكاميرا للعنصر',
+    createScene:'إنشاء مشهد باسم', openScene:'فتح مشهد باسم', saveScene:'حفظ مشهد باسم', duplicateScene:'نسخ مشهد من', toPrefix:'إلى:',
+    deleteScene:'حذف مشهد باسم', changeScene:'تغيير المشهد إلى',
+    evTouchSprite:'يلمس كائنًا', evReceive:'استقبال حدث',
+    catCostume:'الصورة والحركة', catSound:'الصوت',
+    addCostume:'إضافة صورة باسم', switchCostume:'تغيير الصورة إلى', playAnimation:'تشغيل الحركة بسرعة', fpsSuffix:'إطار/ثانية', stopAnimation:'إيقاف الحركة', pauseAnimation:'إيقاف الحركة مؤقتًا',
+    glideFromTo:'انتقل من x:', percentSuffix:'٪',
+    playSound:'تشغيل صوت بنغمة', stopSound:'إيقاف صوت', playMusic:'تشغيل موسيقى بنغمة', stopMusic:'إيقاف موسيقى', setVolume:'ضبط مستوى الصوت إلى',
+    catSaveload:'الحفظ والتحميل', saveGame:'حفظ اللعبة في', loadGame:'تحميل اللعبة من', deleteSave:'حذف الحفظ',
+    catCustom:'بلوكات مخصصة', createBlock:'إنشاء بلوك باسم', editBlock:'تعديل بلوك باسم', deleteBlock:'حذف بلوك باسم', importBlock:'استيراد بلوك باسم', exportBlock:'تصدير بلوك باسم', createAI:'إنشاء ذكاء اصطناعي',
+    catAI:'الذكاء الاصطناعي', setTarget:'تحديد هدف', gotoTarget:'الانتقال إلى الهدف بسرعة', lookAt:'النظر إلى', makeDecision:'اتخاذ قرار', createEnemy:'إنشاء عدو باسم', followPlayer:'اتبع اللاعب بسرعة', attack:'هاجم بضرر', patrol:'دورية بنطاق', findTarget:'البحث عن هدف في نطاق',
+    catPlayer:'اللاعب', createPlayer:'إنشاء لاعب باسم', dash:'اندفاع بسرعة', setHealth:'تعيين الصحة إلى', addHealth:'إضافة صحة', reduceHealth:'تقليل الصحة', onDie:'عند الموت',
+    catEvents:'الأحداث', sendEvent:'إرسال حدث', receiveEvent:'استقبال حدث', broadcastEvent:'بث للجميع',
+    unlBlock:'كود UNL', editUnl:'✎ تحرير', unlModalTitle:'تحرير كود UNL (.unl)', unlPlaceholder:'اكتب كود UNL هنا…', save:'حفظ', cancel:'إلغاء',
+    whenLabel:'▶ عندما', evStart:'🏁 يبدأ اللعبة', evPress:'يُضغط مفتاح', evRelease:'يُفلت مفتاح',
+    keyRight:'→ يمين', keyLeft:'← يسار', keyUp:'↑ فوق', keyDown:'↓ تحت', keySpace:'مسافة', keyEnter:'إدخال',
+    move:'تحرك للأمام', moveSuf:'خطوة', turn:'استدر', turnSuf:'درجة', gotoLabel:'اذهب إلى س:', yPrefix:'ص:', changeX:'غيّر س بمقدار', changeY:'غيّر ص بمقدار',
+    wait:'انتظر', waitSuf:'ثانية', repeat:'كرر', repeatSuf:'مرة', repeatForever:'كرر إلى الأبد',
+    ifThen:'إذا', ifSuf:'عندها', condEdge:'لمس الحافة', condRight:'الضغط على →', condLeft:'الضغط على ←', condUp:'الضغط على ↑', condDown:'الضغط على ↓', condSpace:'الضغط على المسافة',
+    setColor:'غيّر اللون إلى', show:'أظهر', hide:'أخفِ',
+    removeTitle:'حذف هذا القالب', trashHint:'اسحب قالبًا خارج المنطقة لحذفه', spriteNameDefault:'عنصر', playerName:'اللاعب'
+  },
+  en:{
+    subtitle:'block-based 2D game editor', addSprite:'+ New sprite', ready:'Ready', running:'Running…', stopped:'Stopped',
+    run:'▶ Run', stop:'■ Stop', scene:'Scene', addSpriteTitle:'Add a sprite', inspector:'Inspector', objects:'Objects', noSprite:'No sprite selected.',
+    interfaceTab:'Interface', blocksTab:'Blocks', settingsTab:'Settings', settingsTitle:'Settings', showGrid:'Show grid on stage', resetProject:'Reset project', resetConfirm:'Really reset the project? Everything will be deleted.', guideTitle:'Block guide', language:'Language', searchPlaceholder:'Search blocks…', noResults:'No results',
+    name:'Name', posX:'X', posY:'Y', rotation:'Rotation (°)', color:'Color', shape:'Shape', square:'Square', circle:'Circle',
+    catEvent:'Events', catMotion:'Motion', catControl:'Control', catLooks:'Looks', catFunction:'Functions (UNL)', catCamera:'Camera', catScene:'Scene', defineFunction:'define UNL function named', gotoMouse:'go to mouse position', gotoTouch:'go to touch position', createCamera:'create camera', moveCamera:'move camera by x:', evClick:'clicked', evTouch:'touched',
+    rotateCamera:'rotate camera by', degSuffix:'degrees', zoomInCamera:'zoom in camera by', zoomOutCamera:'zoom out camera by', cameraShake:'shake camera with intensity', secSuffix:'seconds', trackCamera:'camera track sprite',
+    createScene:'create scene named', openScene:'open scene named', saveScene:'save scene named', duplicateScene:'duplicate scene from', toPrefix:'to:',
+    deleteScene:'delete scene named', changeScene:'change scene to',
+    evTouchSprite:'touching sprite', evReceive:'receive event',
+    catCostume:'Costume & Animation', catSound:'Sound',
+    addCostume:'add costume named', switchCostume:'switch costume to', playAnimation:'play animation at', fpsSuffix:'fps', stopAnimation:'stop animation', pauseAnimation:'pause animation',
+    glideFromTo:'glide from x:', percentSuffix:'%',
+    playSound:'play sound at pitch', stopSound:'stop sound', playMusic:'play music at pitch', stopMusic:'stop music', setVolume:'set volume to',
+    catSaveload:'Save & Load', saveGame:'save game to slot', loadGame:'load game from slot', deleteSave:'delete save slot',
+    catCustom:'Custom Blocks', createBlock:'create block named', editBlock:'edit block named', deleteBlock:'delete block named', importBlock:'import block named', exportBlock:'export block named', createAI:'create AI',
+    catAI:'Artificial Intelligence', setTarget:'set target', gotoTarget:'go to target at speed', lookAt:'look at', makeDecision:'make decision', createEnemy:'create enemy named', followPlayer:'follow player at speed', attack:'attack with damage', patrol:'patrol with range', findTarget:'find target in range',
+    catPlayer:'Player', createPlayer:'create player named', dash:'dash at speed', setHealth:'set health to', addHealth:'add health', reduceHealth:'reduce health', onDie:'on die',
+    catEvents:'Events', sendEvent:'send event', receiveEvent:'receive event', broadcastEvent:'broadcast to all',
+    unlBlock:'UNL code', editUnl:'✎ Edit', unlModalTitle:'Edit UNL code (.unl)', unlPlaceholder:'Write UNL code here…', save:'Save', cancel:'Cancel',
+    whenLabel:'▶ when', evStart:'🏁 game starts', evPress:'key pressed', evRelease:'key released',
+    keyRight:'→ right', keyLeft:'← left', keyUp:'↑ up', keyDown:'↓ down', keySpace:'space', keyEnter:'enter',
+    move:'move', moveSuf:'steps', turn:'turn', turnSuf:'degrees', gotoLabel:'go to x:', yPrefix:'y:', changeX:'change x by', changeY:'change y by',
+    wait:'wait', waitSuf:'seconds', repeat:'repeat', repeatSuf:'times', repeatForever:'repeat forever',
+    ifThen:'if', ifSuf:'then', condEdge:'touching edge', condRight:'→ key pressed', condLeft:'← key pressed', condUp:'↑ key pressed', condDown:'↓ key pressed', condSpace:'space key pressed',
+    setColor:'set color to', show:'show', hide:'hide',
+    removeTitle:'Delete this block', trashHint:'Drag a block out of the area to delete it', spriteNameDefault:'Sprite', playerName:'Player'
+  }
+};
+function t(key){ return (I18N[LANG] && I18N[LANG][key]) || key; }
+
+let sprites = [];
+let selectedId = null;
+let uidCounter = 1;
+const uid = ()=> 'b'+(uidCounter++);
+
+function makeSprite(name,color,x,y){
+  return {
+    id:'s'+(uidCounter++), name, color, x, y, rotation:0, w:40, h:40, shape:'square', visible:true,
+    script:[ hatBlock() ],
+    costumes:[], animPlaying:false, animPaused:false, animFps:4, _animIndex:0, _animLastTime:0, _touchSpriteActive:false,
+    _runners:[]
+  };
+}
+function hatBlock(){
+  return {uid:uid(), defId:'hat', params:{event:'start', key:'right'}, body:null};
+}
+
+/* default demo sprite */
+sprites.push(makeSprite(t('playerName'),'#5aa9e6',60,0));
+selectedId = sprites[0].id;
+
+function getSprite(id){ return sprites.find(s=>s.id===id); }
+function selected(){ return getSprite(selectedId); }
+
+/* ======================= BLOCK DEFINITIONS ======================= */
+const BLOCK_DEFS = {
+  hat: {cat:'event', c:false},
+  move_steps:   {cat:'motion', labelKey:'move', fields:[{k:'steps',type:'num',def:10}], suffixKey:'moveSuf'},
+  turn_degrees: {cat:'motion', labelKey:'turn', fields:[{k:'degrees',type:'num',def:15}], suffixKey:'turnSuf'},
+  goto_xy:      {cat:'motion', labelKey:'gotoLabel', fields:[{k:'x',type:'num',def:0},{k:'y',type:'num',def:0,prefixKey:'yPrefix'}]},
+  change_x:     {cat:'motion', labelKey:'changeX', fields:[{k:'dx',type:'num',def:10}]},
+  change_y:     {cat:'motion', labelKey:'changeY', fields:[{k:'dy',type:'num',def:10}]},
+  wait_seconds: {cat:'control', labelKey:'wait', fields:[{k:'seconds',type:'num',def:1}], suffixKey:'waitSuf'},
+  repeat_times: {cat:'control', labelKey:'repeat', fields:[{k:'times',type:'num',def:10}], suffixKey:'repeatSuf', c:true},
+  repeat_forever:{cat:'control', labelKey:'repeatForever', fields:[], c:true},
+  if_then:      {cat:'control', labelKey:'ifThen', fields:[{k:'condition',type:'select',def:'edge',optionKeys:[
+                  ['edge','condEdge'],['key_right','condRight'],['key_left','condLeft'],
+                  ['key_up','condUp'],['key_down','condDown'],['key_space','condSpace']
+                ]}], suffixKey:'ifSuf', c:true},
+  set_color:    {cat:'looks', labelKey:'setColor', fields:[{k:'color',type:'color',def:'#5aa9e6'}]},
+  show:         {cat:'looks', labelKey:'show', fields:[]},
+  hide:         {cat:'looks', labelKey:'hide', fields:[]},
+  goto_mouse:   {cat:'motion', labelKey:'gotoMouse', fields:[]},
+  goto_touch:   {cat:'motion', labelKey:'gotoTouch', fields:[]},
+  create_camera:{cat:'camera', labelKey:'createCamera', fields:[]},
+  move_camera:  {cat:'camera', labelKey:'moveCamera', fields:[{k:'dx',type:'num',def:10},{k:'dy',type:'num',def:0,prefixKey:'yPrefix'}]},
+  rotate_camera:{cat:'camera', labelKey:'rotateCamera', fields:[{k:'degrees',type:'num',def:15}], suffixKey:'degSuffix'},
+  zoom_in_camera:{cat:'camera', labelKey:'zoomInCamera', fields:[{k:'amount',type:'num',def:0.2}]},
+  zoom_out_camera:{cat:'camera', labelKey:'zoomOutCamera', fields:[{k:'amount',type:'num',def:0.2}]},
+  camera_shake:{cat:'camera', labelKey:'cameraShake', fields:[{k:'intensity',type:'num',def:8},{k:'duration',type:'num',def:0.5}], suffixKey:'secSuffix'},
+  track_camera:{cat:'camera', labelKey:'trackCamera', fields:[{k:'target',type:'text',def:''}]},
+  create_scene: {cat:'scene', labelKey:'createScene', fields:[{k:'name',type:'text',def:'Scene2'}]},
+  open_scene:   {cat:'scene', labelKey:'openScene', fields:[{k:'name',type:'text',def:'Scene1'}]},
+  save_scene:   {cat:'scene', labelKey:'saveScene', fields:[{k:'name',type:'text',def:'Scene1'}]},
+  duplicate_scene:{cat:'scene', labelKey:'duplicateScene', fields:[{k:'from',type:'text',def:'Scene1'},{k:'to',type:'text',def:'Scene2',prefixKey:'toPrefix'}]},
+  delete_scene: {cat:'scene', labelKey:'deleteScene', fields:[{k:'name',type:'text',def:'Scene1'}]},
+  change_scene: {cat:'scene', labelKey:'changeScene', fields:[{k:'name',type:'text',def:'Scene1'}]},
+  define_function: {cat:'function', labelKey:'defineFunction', fields:[{k:'name',type:'text',def:'myFunction'}], c:true},
+  unl_block: {cat:'function', labelKey:'unlBlock', fields:[], c:false},
+  add_costume:   {cat:'costume', labelKey:'addCostume', fields:[{k:'name',type:'text',def:'costume1'},{k:'color',type:'color',def:'#e6b34d'}]},
+  switch_costume:{cat:'costume', labelKey:'switchCostume', fields:[{k:'name',type:'text',def:'costume1'}]},
+  play_animation:{cat:'costume', labelKey:'playAnimation', fields:[{k:'fps',type:'num',def:4}], suffixKey:'fpsSuffix'},
+  stop_animation:{cat:'costume', labelKey:'stopAnimation', fields:[]},
+  pause_animation:{cat:'costume', labelKey:'pauseAnimation', fields:[]},
+  glide_from_to: {cat:'motion', labelKey:'glideFromTo', fields:[
+                    {k:'fromX',type:'num',def:0},{k:'fromY',type:'num',def:0,prefixKey:'yPrefix'},
+                    {k:'toX',type:'num',def:100,prefixKey:'toPrefix'},{k:'toY',type:'num',def:0,prefixKey:'yPrefix'},
+                    {k:'seconds',type:'num',def:1}
+                  ], suffixKey:'waitSuf'},
+  play_sound:    {cat:'sound', labelKey:'playSound', fields:[{k:'freq',type:'num',def:440}]},
+  stop_sound:    {cat:'sound', labelKey:'stopSound', fields:[]},
+  play_music:    {cat:'sound', labelKey:'playMusic', fields:[{k:'freq',type:'num',def:330}]},
+  stop_music:    {cat:'sound', labelKey:'stopMusic', fields:[]},
+  set_volume:    {cat:'sound', labelKey:'setVolume', fields:[{k:'level',type:'num',def:80}], suffixKey:'percentSuffix'},
+  /* ---- Save/Load ---- */
+  save_game:   {cat:'saveload', labelKey:'saveGame', fields:[{k:'slot',type:'text',def:'save1'}]},
+  load_game:   {cat:'saveload', labelKey:'loadGame', fields:[{k:'slot',type:'text',def:'save1'}]},
+  delete_save: {cat:'saveload', labelKey:'deleteSave', fields:[{k:'slot',type:'text',def:'save1'}]},
+  /* ---- Custom Blocks ---- */
+  create_block:  {cat:'custom', labelKey:'createBlock', fields:[{k:'name',type:'text',def:'myBlock'}], c:true},
+  edit_block:    {cat:'custom', labelKey:'editBlock', fields:[{k:'name',type:'text',def:'myBlock'}]},
+  delete_block:  {cat:'custom', labelKey:'deleteBlock', fields:[{k:'name',type:'text',def:'myBlock'}]},
+  import_block:  {cat:'custom', labelKey:'importBlock', fields:[{k:'name',type:'text',def:'myBlock'}]},
+  export_block:  {cat:'custom', labelKey:'exportBlock', fields:[{k:'name',type:'text',def:'myBlock'}]},
+  create_ai:     {cat:'custom', labelKey:'createAI', fields:[], c:false},
+  /* ---- Navigation / targeting ---- */
+  set_target:   {cat:'ai', labelKey:'setTarget', fields:[{k:'name',type:'text',def:''}]},
+  goto_target:  {cat:'ai', labelKey:'gotoTarget', fields:[{k:'speed',type:'num',def:3}]},
+  look_at:      {cat:'ai', labelKey:'lookAt', fields:[{k:'name',type:'text',def:''}]},
+  /* ---- AI / Enemy ---- */
+  make_decision:{cat:'ai', labelKey:'makeDecision', fields:[], c:true},
+  create_enemy: {cat:'ai', labelKey:'createEnemy', fields:[{k:'name',type:'text',def:'Enemy'},{k:'color',type:'color',def:'#e6615a'}]},
+  follow_player:{cat:'ai', labelKey:'followPlayer', fields:[{k:'speed',type:'num',def:2}]},
+  attack:       {cat:'ai', labelKey:'attack', fields:[{k:'damage',type:'num',def:10}]},
+  patrol:       {cat:'ai', labelKey:'patrol', fields:[{k:'range',type:'num',def:80}]},
+  find_target:  {cat:'ai', labelKey:'findTarget', fields:[{k:'range',type:'num',def:150}]},
+  /* ---- Player ---- */
+  create_player:{cat:'player', labelKey:'createPlayer', fields:[{k:'name',type:'text',def:'Player'},{k:'color',type:'color',def:'#5aa9e6'}]},
+  dash:         {cat:'player', labelKey:'dash', fields:[{k:'speed',type:'num',def:12},{k:'seconds',type:'num',def:0.2}], suffixKey:'waitSuf'},
+  set_health:   {cat:'player', labelKey:'setHealth', fields:[{k:'value',type:'num',def:100}]},
+  add_health:   {cat:'player', labelKey:'addHealth', fields:[{k:'amount',type:'num',def:10}]},
+  reduce_health:{cat:'player', labelKey:'reduceHealth', fields:[{k:'amount',type:'num',def:10}]},
+  on_die:       {cat:'player', labelKey:'onDie', fields:[], c:true},
+  /* ---- Events ---- */
+  send_event:      {cat:'events', labelKey:'sendEvent', fields:[{k:'name',type:'text',def:'myEvent'}]},
+  receive_event:   {cat:'events', labelKey:'receiveEvent', fields:[{k:'name',type:'text',def:'myEvent'}], c:true},
+  broadcast_event: {cat:'events', labelKey:'broadcastEvent', fields:[{k:'name',type:'text',def:'myEvent'}]},
+};
+const CAT_CLASS = {event:'b-event', motion:'b-motion', control:'b-control', looks:'b-looks', function:'b-function', camera:'b-camera', scene:'b-scene', costume:'b-costume', sound:'b-sound', saveload:'b-saveload', custom:'b-custom', ai:'b-ai', player:'b-player', events:'b-events'};
+const CAT_TITLE_KEY = {event:'catEvent', motion:'catMotion', control:'catControl', looks:'catLooks', function:'catFunction', camera:'catCamera', scene:'catScene', costume:'catCostume', sound:'catSound', saveload:'catSaveload', custom:'catCustom', ai:'catAI', player:'catPlayer', events:'catEvents'};
+
+const BLOCK_DOCS = {
+  hat:{ar:'يحدد متى يبدأ تنفيذ السكريبت: عند بدء اللعبة، أو عند ضغط مفتاح معيّن، أو عند إفلات مفتاح معيّن.', en:'Defines when the script starts running: when the game starts, when a specific key is pressed, or when a specific key is released.'},
+  move_steps:{ar:'يحرّك العنصر إلى الأمام بعدد الخطوات المحدد، حسب اتجاه دورانه الحالي.', en:'Moves the sprite forward by the given number of steps, in the direction it is currently facing.'},
+  turn_degrees:{ar:'يُدوّر العنصر بمقدار عدد الدرجات المحدد (باتجاه عقارب الساعة).', en:'Rotates the sprite by the given number of degrees (clockwise).'},
+  goto_xy:{ar:'ينقل العنصر مباشرة إلى إحداثيات x و y محددة على المسرح.', en:'Instantly moves the sprite to the given x and y coordinates on the stage.'},
+  change_x:{ar:'يغيّر موضع العنصر أفقيًا (x) بالقيمة المحددة، دون تغيير y.', en:'Changes the sprite\u2019s horizontal (x) position by the given amount, without changing y.'},
+  change_y:{ar:'يغيّر موضع العنصر عموديًا (y) بالقيمة المحددة، دون تغيير x.', en:'Changes the sprite\u2019s vertical (y) position by the given amount, without changing x.'},
+  wait_seconds:{ar:'يوقف تنفيذ السكريبت مؤقتًا لعدد الثواني المحدد قبل المتابعة.', en:'Pauses the script for the given number of seconds before continuing.'},
+  repeat_times:{ar:'يكرر تنفيذ القوالب الموجودة بداخله عددًا محددًا من المرات.', en:'Repeats the blocks placed inside it a specific number of times.'},
+  repeat_forever:{ar:'يكرر تنفيذ القوالب الموجودة بداخله بلا توقف طوال تشغيل اللعبة.', en:'Repeats the blocks placed inside it forever, for as long as the game runs.'},
+  if_then:{ar:'ينفّذ القوالب الموجودة بداخله فقط عندما يتحقق الشرط المختار (مثل لمس الحافة أو ضغط مفتاح).', en:'Runs the blocks placed inside it only when the chosen condition is true (like touching the edge or a key press).'},
+  set_color:{ar:'يغيّر لون العنصر إلى اللون المحدد.', en:'Changes the sprite\u2019s color to the chosen color.'},
+  show:{ar:'يجعل العنصر مرئيًا على المسرح إن كان مخفيًا.', en:'Makes the sprite visible on the stage if it was hidden.'},
+  hide:{ar:'يخفي العنصر من المسرح دون حذفه من السكريبت.', en:'Hides the sprite from the stage without removing it from the script.'},
+  goto_mouse:{ar:'ينقل العنصر مباشرة إلى موضع مؤشر الفأرة الحالي.', en:'Instantly moves the sprite to the current mouse cursor position.'},
+  goto_touch:{ar:'ينقل العنصر مباشرة إلى آخر موضع لمسة على الشاشة.', en:'Instantly moves the sprite to the last touch position on the screen.'},
+  create_camera:{ar:'يُنشئ الكاميرا ويعيد ضبط موضعها إلى المركز (0,0).', en:'Creates the camera and resets its position back to the center (0,0).'},
+  move_camera:{ar:'يحرّك الكاميرا بمقدار x و y محددين، مما يغيّر الجزء الظاهر من الخارطة.', en:'Moves the camera by the given x and y amounts, changing which part of the map is visible.'},
+  rotate_camera:{ar:'يُدوّر الكاميرا بمقدار عدد الدرجات المحدد، فتدور الخارطة كاملة معها.', en:'Rotates the camera by the given number of degrees, rotating the whole visible map with it.'},
+  zoom_in_camera:{ar:'يقرّب الكاميرا (تكبير) بمقدار القيمة المحددة.', en:'Zooms the camera in by the given amount.'},
+  zoom_out_camera:{ar:'يبعّد الكاميرا (تصغير) بمقدار القيمة المحددة.', en:'Zooms the camera out by the given amount.'},
+  camera_shake:{ar:'يهزّ الكاميرا بشدة وقوة محددتين لمدة معينة بالثواني، مفيد لتأثيرات الاصطدام والانفجار.', en:'Shakes the camera with the given intensity for the given duration in seconds, useful for impact or explosion effects.'},
+  track_camera:{ar:'يجعل الكاميرا تتبع تلقائيًا عنصرًا محددًا بالاسم، فتتحرك معه أينما ذهب.', en:'Makes the camera automatically follow a sprite by name, moving with it wherever it goes.'},
+  create_scene:{ar:'يُنشئ مشهدًا جديدًا فارغًا بالاسم المحدد يمكن فتحه لاحقًا.', en:'Creates a new empty scene with the given name that can be opened later.'},
+  open_scene:{ar:'يفتح مشهدًا محفوظًا بالاسم المحدد ويستبدل به كل عناصر المشهد الحالي.', en:'Opens a saved scene by name, replacing all sprites in the current scene with it.'},
+  save_scene:{ar:'يحفظ كل عناصر المشهد الحالي (بمواضعها وسكريبتاتها) تحت الاسم المحدد.', en:'Saves all sprites in the current scene (with their positions and scripts) under the given name.'},
+  duplicate_scene:{ar:'ينسخ مشهدًا محفوظًا إلى اسم جديد، مع الاحتفاظ بالمشهد الأصلي كما هو.', en:'Duplicates a saved scene into a new name, keeping the original scene unchanged.'},
+  define_function:{ar:'يُنشئ دالة بلغة UNL (امتداد .unl‎) بالاسم المحدد، وتُنفَّذ القوالب بداخلها كمجموعة. سيتم استكمال ربطها الكامل بلغة UNL بعد استلام التفاصيل.', en:'Creates a UNL-language function (.unl file extension) with the given name; the blocks inside run as a group. Full UNL integration will be completed once the language details are provided.'},
+  unl_block:{ar:'قالب كتابة كود مباشر بلغة UNL (امتداد .unl‎). اضغط على زر التحرير لفتح نافذة الكتابة. لن يُنفَّذ الكود بعد حتى يتم استكمال مفسّر UNL.', en:'A block for writing raw UNL-language code (.unl file extension) directly. Click the edit button to open the writing window. The code will not run until the UNL interpreter is completed.'},
+  delete_scene:{ar:'يحذف مشهدًا محفوظًا بالاسم المحدد نهائيًا.', en:'Permanently deletes a saved scene by name.'},
+  change_scene:{ar:'يبدّل إلى مشهد محفوظ آخر بالاسم المحدد، ويستبدل به عناصر المشهد الحالي.', en:'Switches to another saved scene by name, replacing the current scene\u2019s sprites with it.'},
+  add_costume:{ar:'يضيف مظهرًا (لونًا) جديدًا للعنصر تحت اسم محدد، ليُستخدم لاحقًا في تغيير المظهر أو الحركة.', en:'Adds a new appearance (color) to the sprite under a given name, to be used later for costume switching or animation.'},
+  switch_costume:{ar:'يبدّل مظهر العنصر إلى مظهر محفوظ مسبقًا بالاسم المحدد.', en:'Switches the sprite\u2019s appearance to a previously saved costume by name.'},
+  play_animation:{ar:'يبدأ تشغيل حركة تتنقل تلقائيًا بين مظاهر العنصر المحفوظة، بالسرعة المحددة (إطار في الثانية).', en:'Starts an animation that automatically cycles through the sprite\u2019s saved costumes, at the given speed (frames per second).'},
+  stop_animation:{ar:'يوقف الحركة نهائيًا ويعيد العنصر لأول مظهر.', en:'Stops the animation completely and resets the sprite to its first costume.'},
+  pause_animation:{ar:'يوقف الحركة مؤقتًا عند المظهر الحالي دون إعادة ضبطها.', en:'Pauses the animation at its current costume without resetting it.'},
+  glide_from_to:{ar:'ينقل العنصر مباشرة إلى نقطة البداية، ثم يحرّكه بسلاسة نحو نقطة النهاية خلال المدة المحددة بالثواني.', en:'Instantly places the sprite at the start point, then smoothly moves it to the end point over the given duration in seconds.'},
+  play_sound:{ar:'يشغّل نغمة صوتية قصيرة بالتردد المحدد (بالهرتز). صوت مبسّط لعدم توفر رفع ملفات صوتية بعد.', en:'Plays a short tone at the given pitch (in Hz). A simplified sound since file uploads aren\u2019t supported yet.'},
+  stop_sound:{ar:'يوقف كل الأصوات القصيرة الجارية حاليًا.', en:'Stops all currently playing short sounds.'},
+  play_music:{ar:'يشغّل نغمة مستمرة (موسيقى) بالتردد المحدد، وتستمر حتى يتم إيقافها.', en:'Plays a continuous tone (music) at the given pitch, which keeps playing until stopped.'},
+  stop_music:{ar:'يوقف الموسيقى المستمرة الجارية حاليًا.', en:'Stops the currently playing continuous music.'},
+  set_volume:{ar:'يضبط مستوى صوت اللعبة بشكل عام كنسبة مئوية من 0 إلى 100.', en:'Sets the game\u2019s overall sound volume as a percentage from 0 to 100.'},
+};
+
+function newBlockInstance(defId){
+  const def = BLOCK_DEFS[defId];
+  const params = {};
+  (def.fields||[]).forEach(f=> params[f.k]=f.def);
+  return {uid:uid(), defId, params, body: def.c? [] : null};
+}
+
+/* ======================= RENDER: PALETTE ======================= */
+function renderPalette(){
+  const el = document.getElementById('palette');
+  el.innerHTML='';
+  ['event','motion','control','looks','function','camera','scene','costume','sound','saveload','custom','ai','player','events'].forEach(cat=>{
+    const t2=document.createElement('div'); t2.className='cat-title'; t2.textContent=t(CAT_TITLE_KEY[cat]); el.appendChild(t2);
+    Object.entries(BLOCK_DEFS).forEach(([defId,def])=>{
+      if(def.cat!==cat || defId==='hat') return;
+      const b = renderBlockDOM({uid:'palette-'+defId, defId, params: Object.fromEntries((def.fields||[]).map(f=>[f.k,f.def])), body: def.c?[]:null}, true);
+      b.classList.add('palette-block');
+      const searchText = (t(def.labelKey)+' '+(def.suffixKey?t(def.suffixKey):'')+' '+t(CAT_TITLE_KEY[cat])).toLowerCase();
+      b.dataset.search = searchText;
+      b.addEventListener('pointerdown', e=>{
+        if(e.target.closest('input,select')) return;
+        beginDrag(e, {mode:'new', defId}, b);
+      });
+      el.appendChild(b);
+    });
+  });
+  const noRes = document.createElement('div'); noRes.id='paletteNoResults'; noRes.textContent = t('noResults');
+  el.appendChild(noRes);
+  filterPalette(document.getElementById('paletteSearch').value);
+}
+
+function filterPalette(query){
+  const q = (query||'').trim().toLowerCase();
+  const blocks = document.querySelectorAll('#palette .palette-block');
+  let visibleCount = 0;
+  blocks.forEach(b=>{
+    const match = !q || (b.dataset.search||'').includes(q);
+    b.classList.toggle('search-hidden', !match);
+    if(match) visibleCount++;
+  });
+  document.querySelectorAll('#palette .cat-title').forEach(ct=>{ ct.style.display='none'; });
+  const noRes = document.getElementById('paletteNoResults');
+  if(noRes) noRes.style.display = visibleCount===0 ? 'block' : 'none';
+}
+
+/* build DOM for one block (palette=true means don't attach edit handlers that mutate live tree) */
+function renderBlockDOM(block, isPaletteSample){
+  const def = BLOCK_DEFS[block.defId];
+  const wrap = document.createElement('div');
+  wrap.className = 'block ' + (CAT_CLASS[def.cat]||'');
+  if(block.defId==='hat'){
+    wrap.appendChild(makeHatContent(block, isPaletteSample));
+  } else {
+    const label = document.createElement('span'); label.textContent = t(def.labelKey); wrap.appendChild(label);
+    (def.fields||[]).forEach(f=>{
+      if(f.prefixKey){ const p=document.createElement('span'); p.textContent=t(f.prefixKey); wrap.appendChild(p); }
+      let input;
+      if(f.type==='num'){
+        input = document.createElement('input'); input.type='text'; input.value = block.params[f.k];
+        input.addEventListener('pointerdown', e=>e.stopPropagation());
+        input.addEventListener('change', ()=>{ block.params[f.k] = parseFloat(input.value)||0; });
+      } else if(f.type==='color'){
+        input = document.createElement('input'); input.type='color'; input.value = block.params[f.k];
+        input.addEventListener('pointerdown', e=>e.stopPropagation());
+        input.addEventListener('input', ()=>{ block.params[f.k] = input.value; });
+      } else if(f.type==='select'){
+        input = document.createElement('select');
+        f.optionKeys.forEach(([v,labelKey])=>{ const o=document.createElement('option'); o.value=v; o.textContent=t(labelKey); if(block.params[f.k]===v) o.selected=true; input.appendChild(o); });
+        input.addEventListener('pointerdown', e=>e.stopPropagation());
+        input.addEventListener('change', ()=>{ block.params[f.k]=input.value; });
+      } else if(f.type==='text'){
+        input = document.createElement('input'); input.type='text'; input.value = block.params[f.k];
+        input.style.width='90px';
+        input.addEventListener('pointerdown', e=>e.stopPropagation());
+        input.addEventListener('change', ()=>{ block.params[f.k] = input.value; });
+      }
+      wrap.appendChild(input);
+    });
+    if(def.suffixKey){ const s=document.createElement('span'); s.textContent=t(def.suffixKey); wrap.appendChild(s); }
+    if(block.defId==='unl_block'){
+      const editBtn = document.createElement('button');
+      editBtn.type='button'; editBtn.className='unl-edit-btn'; editBtn.textContent = t('editUnl');
+      editBtn.addEventListener('pointerdown', e=>e.stopPropagation());
+      editBtn.addEventListener('click', e=>{
+        e.stopPropagation();
+        if(!isPaletteSample) openUnlModal(block);
+      });
+      wrap.appendChild(editBtn);
+    }
+  }
+  if(!isPaletteSample){
+    const x = document.createElement('div'); x.className='remove-x'; x.textContent='×';
+    x.title=t('removeTitle');
+    x.addEventListener('click', (e)=>{ e.stopPropagation(); removeBlockByUid(block.uid); rerenderWorkspace(); });
+    wrap.appendChild(x);
+  }
+  return wrap;
+}
+
+function makeHatContent(block, isPaletteSample){
+  const frag = document.createElement('span');
+  frag.style.display='contents';
+  const flag = document.createElement('span'); flag.textContent=t('whenLabel');
+  frag.appendChild(flag);
+  const sel = document.createElement('select');
+  const opts = [['start','evStart'],['press','evPress'],['release','evRelease'],['click','evClick'],['touch','evTouch'],['touch_sprite','evTouchSprite'],['receive','evReceive']];
+  opts.forEach(([v,labelKey])=>{ const o=document.createElement('option'); o.value=v; o.textContent=t(labelKey); if(block.params.event===v) o.selected=true; sel.appendChild(o); });
+  sel.addEventListener('pointerdown', e=>e.stopPropagation());
+  sel.addEventListener('change', ()=>{
+    block.params.event = sel.value;
+    if(!isPaletteSample) rerenderWorkspace();
+  });
+  frag.appendChild(sel);
+  if(block.params.event==='press' || block.params.event==='release'){
+    const keySel = document.createElement('select');
+    buildKeyOptions().forEach(([v,label])=>{ const o=document.createElement('option'); o.value=v; o.textContent=label; if((block.params.key||'right')===v) o.selected=true; keySel.appendChild(o); });
+    keySel.addEventListener('pointerdown', e=>e.stopPropagation());
+    keySel.addEventListener('change', ()=>{ block.params.key = keySel.value; });
+    frag.appendChild(keySel);
+  }
+  if(block.params.event==='touch_sprite'){
+    const targetInput = document.createElement('input'); targetInput.type='text'; targetInput.style.width='70px';
+    targetInput.value = block.params.target||'';
+    targetInput.addEventListener('pointerdown', e=>e.stopPropagation());
+    targetInput.addEventListener('change', ()=>{ block.params.target = targetInput.value; });
+    frag.appendChild(targetInput);
+  }
+  if(block.params.event==='receive'){
+    const evInput = document.createElement('input'); evInput.type='text'; evInput.style.width='80px';
+    evInput.value = block.params.key||'myEvent';
+    evInput.addEventListener('pointerdown', e=>e.stopPropagation());
+    evInput.addEventListener('change', ()=>{ block.params.key = evInput.value; });
+    frag.appendChild(evInput);
+  }
+  return frag;
+}
+
+/* ======================= WORKSPACE (script tree) RENDER + DRAG/DROP ======================= */
+let dragArrayRegistry = {}; // arrayId -> array reference
+
+function rerenderWorkspace(){
+  const s = selected();
+  const root = document.getElementById('stackRoot');
+  root.innerHTML='';
+  dragArrayRegistry = {};
+  if(!s){ return; }
+  dragArrayRegistry['root'] = s.script;
+  renderStackInto(root, s.script, 'root');
+  renderInspector();
+}
+
+function renderStackInto(container, arr, arrayId){
+  // drop slot before first item
+  container.appendChild(makeDropSlot(arrayId, 0));
+  arr.forEach((block, idx)=>{
+    const holder = document.createElement('div');
+    holder.className='placed-block';
+    holder.dataset.uid = block.uid;
+    const dom = renderBlockDOM(block,false);
+    if(block.defId!=='hat'){
+      dom.addEventListener('pointerdown', e=>{
+        if(e.target.closest('input,select,.remove-x')) return;
+        holder.classList.add('dragging');
+        beginDrag(e, {mode:'move', uid:block.uid}, dom);
+      });
+    }
+    holder.appendChild(dom);
+    const def = BLOCK_DEFS[block.defId];
+    if(def.c){
+      const body = document.createElement('div');
+      body.className='c-body';
+      const bodyArrId = 'body:'+block.uid;
+      dragArrayRegistry[bodyArrId] = block.body;
+      renderStackInto(body, block.body, bodyArrId);
+      holder.appendChild(body);
+    }
+    container.appendChild(holder);
+    container.appendChild(makeDropSlot(arrayId, idx+1));
+  });
+}
+
+function makeDropSlot(arrayId, index){
+  const slot = document.createElement('div');
+  slot.className='stack-slot';
+  slot.dataset.arrayid = arrayId;
+  slot.dataset.index = index;
+  return slot;
+}
+
+/* ---- universal pointer-based drag & drop (mouse + touch) ---- */
+let dragState = null;
+function beginDrag(e, payload, sourceEl){
+  e.preventDefault();
+  const rect = sourceEl.getBoundingClientRect();
+  const ghost = sourceEl.cloneNode(true);
+  ghost.className = ghost.className.replace('palette-block','') + ' drag-ghost';
+  ghost.style.width = rect.width+'px';
+  ghost.style.left = e.clientX+'px';
+  ghost.style.top = e.clientY+'px';
+  document.body.appendChild(ghost);
+  dragState = {payload, ghost, currentSlot:null};
+  document.body.style.cursor='grabbing';
+  if(e.pointerId!==undefined){ try{ sourceEl.setPointerCapture && sourceEl.releasePointerCapture(e.pointerId); }catch(err){} }
+}
+window.addEventListener('pointermove', e=>{
+  if(!dragState) return;
+  dragState.ghost.style.left = e.clientX+'px';
+  dragState.ghost.style.top = e.clientY+'px';
+  document.querySelectorAll('.stack-slot.drop-hover').forEach(s=>s.classList.remove('drop-hover'));
+  const el = document.elementFromPoint(e.clientX, e.clientY);
+  const slot = el && el.closest && el.closest('.stack-slot');
+  if(slot){ slot.classList.add('drop-hover'); }
+  dragState.currentSlot = slot || null;
+});
+window.addEventListener('pointerup', ()=>{
+  if(!dragState) return;
+  const slot = dragState.currentSlot;
+  const payload = dragState.payload;
+  document.querySelectorAll('.stack-slot.drop-hover').forEach(s=>s.classList.remove('drop-hover'));
+  document.querySelectorAll('.placed-block.dragging').forEach(s=>s.classList.remove('dragging'));
+  dragState.ghost.remove();
+  document.body.style.cursor='';
+  dragState = null;
+  if(slot){
+    handleDrop(slot.dataset.arrayid, parseInt(slot.dataset.index,10), payload);
+  }
+});
+window.addEventListener('pointercancel', ()=>{
+  if(!dragState) return;
+  dragState.ghost.remove();
+  document.querySelectorAll('.stack-slot.drop-hover').forEach(s=>s.classList.remove('drop-hover'));
+  document.querySelectorAll('.placed-block.dragging').forEach(s=>s.classList.remove('dragging'));
+  document.body.style.cursor='';
+  dragState = null;
+});
+
+function handleDrop(arrayId, index, data){
+  const targetArr = dragArrayRegistry[arrayId];
+  if(!targetArr) return;
+  if(data.mode==='new'){
+    if(data.defId==='hat') return; // only one hat allowed, already present
+    const inst = newBlockInstance(data.defId);
+    targetArr.splice(index,0,inst);
+  } else if(data.mode==='move'){
+    if(arrayId==='root' && index===0){ /* keep hat protected: never insert above index used for hat handled separately */ }
+    const removed = findAndRemove(selected().script, data.uid);
+    if(!removed) return;
+    // prevent dropping the hat block anywhere but stays; also prevent placing normal block before hat at root idx0
+    let insertIdx = index;
+    if(arrayId==='root' && removed.defId!=='hat' && insertIdx===0) insertIdx = 1; // block always after hat
+    targetArr.splice(insertIdx,0,removed);
+  }
+  rerenderWorkspace();
+}
+
+function findAndRemove(arr, targetUid){
+  for(let i=0;i<arr.length;i++){
+    if(arr[i].uid===targetUid){
+      const [item] = arr.splice(i,1);
+      return item;
+    }
+    const def = BLOCK_DEFS[arr[i].defId];
+    if(def.c && arr[i].body){
+      const found = findAndRemove(arr[i].body, targetUid);
+      if(found) return found;
+    }
+  }
+  return null;
+}
+function removeBlockByUid(targetUid){
+  const s = selected();
+  if(!s) return;
+  const b = findInTree(s.script, targetUid);
+  if(b && b.defId==='hat') return; // can't delete hat
+  findAndRemove(s.script, targetUid);
+}
+function findInTree(arr, targetUid){
+  for(const b of arr){
+    if(b.uid===targetUid) return b;
+    if(b.body){ const f=findInTree(b.body,targetUid); if(f) return f; }
+  }
+  return null;
+}
+
+/* ======================= SCENE PANEL ======================= */
+function renderSpriteList(){
+  const list = document.getElementById('spriteList');
+  list.innerHTML='';
+  sprites.forEach(sp=>{
+    const item = document.createElement('div');
+    item.className='sprite-item' + (sp.id===selectedId?' selected':'');
+    const sw = document.createElement('div'); sw.className='sprite-swatch'; sw.style.background=sp.color;
+    const nm = document.createElement('div'); nm.className='name'; nm.textContent=sp.name;
+    const del = document.createElement('div'); del.className='del'; del.textContent='✕';
+    del.title='Supprimer';
+    del.addEventListener('click', e=>{
+      e.stopPropagation();
+      sprites = sprites.filter(x=>x.id!==sp.id);
+      if(selectedId===sp.id) selectedId = sprites[0]? sprites[0].id : null;
+      renderAll();
+    });
+    item.appendChild(sw); item.appendChild(nm); item.appendChild(del);
+    item.addEventListener('click', ()=>{ selectedId = sp.id; renderAll(); });
+    list.appendChild(item);
+  });
+}
+
+/* ======================= INSPECTOR ======================= */
+function renderInspector(){
+  const body = document.getElementById('inspectorBody');
+  body.innerHTML='';
+  const s = selected();
+  if(!s){ body.innerHTML='<div class="empty-hint">'+t('noSprite')+'</div>'; return; }
+
+  function field(labelText, inputEl){
+    const f=document.createElement('div'); f.className='field';
+    const l=document.createElement('label'); l.textContent=labelText;
+    f.appendChild(l); f.appendChild(inputEl);
+    return f;
+  }
+  const nameInput=document.createElement('input'); nameInput.type='text'; nameInput.value=s.name;
+  nameInput.addEventListener('input', ()=>{ s.name=nameInput.value; renderSpriteList(); });
+  body.appendChild(field(t('name'), nameInput));
+
+  const row = document.createElement('div'); row.className='field-row';
+  const xInput=document.createElement('input'); xInput.type='number'; xInput.value=Math.round(s.x);
+  xInput.addEventListener('input', ()=>{ s.x=parseFloat(xInput.value)||0; });
+  const yInput=document.createElement('input'); yInput.type='number'; yInput.value=Math.round(s.y);
+  yInput.addEventListener('input', ()=>{ s.y=parseFloat(yInput.value)||0; });
+  row.appendChild(field(t('posX'), xInput)); row.appendChild(field(t('posY'), yInput));
+  body.appendChild(row);
+
+  const rotInput=document.createElement('input'); rotInput.type='number'; rotInput.value=Math.round(s.rotation);
+  rotInput.addEventListener('input', ()=>{ s.rotation=parseFloat(rotInput.value)||0; });
+  body.appendChild(field(t('rotation'), rotInput));
+
+  const colorInput=document.createElement('input'); colorInput.type='color'; colorInput.value=s.color;
+  colorInput.addEventListener('input', ()=>{ s.color=colorInput.value; renderSpriteList(); });
+  body.appendChild(field(t('color'), colorInput));
+
+  const shapeSel=document.createElement('select'); shapeSel.style.width='100%';
+  shapeSel.style.background='var(--panel2)'; shapeSel.style.color='var(--text)'; shapeSel.style.border='1px solid var(--border)'; shapeSel.style.padding='5px';shapeSel.style.borderRadius='4px';
+  [['square',t('square')],['circle',t('circle')]].forEach(([v,l])=>{ const o=document.createElement('option'); o.value=v; o.textContent=l; if(s.shape===v) o.selected=true; shapeSel.appendChild(o); });
+  shapeSel.addEventListener('change', ()=>{ s.shape=shapeSel.value; });
+  body.appendChild(field(t('shape'), shapeSel));
+}
+
+/* ======================= CANVAS / STAGE ======================= */
+const canvas = document.getElementById('stage');
+const ctx = canvas.getContext('2d');
+const CW = canvas.width, CH = canvas.height;
+
+let camera = {x:0, y:0, zoom:1, rotation:0, shakeUntil:0, shakeMagnitude:0, shakeX:0, shakeY:0, trackName:null};
+
+/* ---- simple tone-based audio engine (no external audio files) ---- */
+let audioCtx = null;
+let masterGain = null;
+let activeToneNodes = [];
+let musicOsc = null;
+function ensureAudio(){
+  if(!audioCtx){
+    audioCtx = new (window.AudioContext||window.webkitAudioContext)();
+    masterGain = audioCtx.createGain();
+    masterGain.gain.value = 0.8;
+    masterGain.connect(audioCtx.destination);
+  }
+  if(audioCtx.state==='suspended') audioCtx.resume();
+}
+function playTone(freq, duration, loop){
+  ensureAudio();
+  const osc = audioCtx.createOscillator();
+  const gain = audioCtx.createGain();
+  osc.type = 'sine'; osc.frequency.value = freq;
+  gain.gain.value = 0.5;
+  osc.connect(gain); gain.connect(masterGain);
+  osc.start();
+  if(loop){
+    if(musicOsc) try{ musicOsc.osc.stop(); }catch(e){}
+    musicOsc = {osc, gain};
+  } else {
+    activeToneNodes.push(osc);
+    osc.stop(audioCtx.currentTime + Math.max(0.05, duration));
+    osc.onended = ()=>{ activeToneNodes = activeToneNodes.filter(o=>o!==osc); };
+  }
+}
+function stopAllTones(){
+  activeToneNodes.forEach(o=>{ try{ o.stop(); }catch(e){} });
+  activeToneNodes = [];
+}
+function stopMusic(){
+  if(musicOsc){ try{ musicOsc.osc.stop(); }catch(e){} musicOsc = null; }
+}
+function setMasterVolume(level){
+  ensureAudio();
+  masterGain.gain.value = Math.max(0, Math.min(100, level))/100;
+}
+let scenes = {};
+
+function snapshotSprite(sp){
+  const plain = {name:sp.name, color:sp.color, x:sp.x, y:sp.y, rotation:sp.rotation, w:sp.w, h:sp.h, shape:sp.shape, visible:sp.visible, script:sp.script, costumes:sp.costumes||[]};
+  return JSON.parse(JSON.stringify(plain));
+}
+function loadSceneSprites(sceneSprites){
+  sprites = sceneSprites.map(s=>{
+    const copy = JSON.parse(JSON.stringify(s));
+    copy.id = 's'+(uidCounter++);
+    copy._runners = [];
+    copy.costumes = copy.costumes || [];
+    copy.animPlaying = false; copy.animPaused = false; copy.animFps = copy.animFps || 4;
+    copy._animIndex = 0; copy._animLastTime = 0; copy._touchSpriteActive = false;
+    return copy;
+  });
+  selectedId = sprites[0] ? sprites[0].id : null;
+  renderAll();
+}
+let lastMouse = {x:0, y:0};
+let lastTouch = {x:0, y:0};
+
+function worldToScreen(x,y){
+  const relX = x-camera.x, relY = y-camera.y;
+  const rad = (camera.rotation||0)*Math.PI/180;
+  const cos=Math.cos(rad), sin=Math.sin(rad);
+  const rx = relX*cos - relY*sin;
+  const ry = relX*sin + relY*cos;
+  const zoom = camera.zoom||1;
+  return {x: CW/2 + rx*zoom + (camera.shakeX||0), y: CH/2 - ry*zoom + (camera.shakeY||0)};
+}
+function screenToWorld(sx,sy){
+  const zoom = camera.zoom||1;
+  const rx = (sx-CW/2-(camera.shakeX||0))/zoom;
+  const ry = -(sy-CH/2-(camera.shakeY||0))/zoom;
+  const rad = (camera.rotation||0)*Math.PI/180;
+  const cos=Math.cos(rad), sin=Math.sin(rad);
+  const relX = rx*cos + ry*sin;
+  const relY = -rx*sin + ry*cos;
+  return {x: relX+camera.x, y: relY+camera.y};
+}
+
+function hitTestSprite(sp, world){
+  if(!sp.visible) return false;
+  if(sp.shape==='circle'){
+    const dx=world.x-sp.x, dy=world.y-sp.y;
+    return Math.sqrt(dx*dx+dy*dy) <= sp.w/2;
+  }
+  return Math.abs(world.x-sp.x)<=sp.w/2 && Math.abs(world.y-sp.y)<=sp.h/2;
+}
+function stagePointFromEvent(e){
+  const rect = canvas.getBoundingClientRect();
+  return screenToWorld(e.clientX-rect.left, e.clientY-rect.top);
+}
+canvas.addEventListener('pointermove', e=>{
+  const world = stagePointFromEvent(e);
+  if(e.pointerType==='touch') lastTouch = world; else lastMouse = world;
+});
+canvas.addEventListener('pointerdown', e=>{
+  const world = stagePointFromEvent(e);
+  if(e.pointerType==='touch'){
+    lastTouch = world;
+    if(running) sprites.forEach(sp=>{ const hat=sp.script[0]; if(hat && hat.defId==='hat' && hat.params.event==='touch' && hitTestSprite(sp,world)) startScriptFor(sp,'touch'); });
+  } else {
+    lastMouse = world;
+    if(running) sprites.forEach(sp=>{ const hat=sp.script[0]; if(hat && hat.defId==='hat' && hat.params.event==='click' && hitTestSprite(sp,world)) startScriptFor(sp,'click'); });
+  }
+});
+
+function drawStage(){
+  if(camera.trackName){
+    const target = sprites.find(s=>s.name===camera.trackName);
+    if(target){ camera.x = target.x; camera.y = target.y; }
+  }
+  if(performance.now() < camera.shakeUntil){
+    camera.shakeX = (Math.random()*2-1)*camera.shakeMagnitude;
+    camera.shakeY = (Math.random()*2-1)*camera.shakeMagnitude;
+  } else {
+    camera.shakeX = 0; camera.shakeY = 0;
+  }
+  ctx.clearRect(0,0,CW,CH);
+  // grid
+  if(showGrid){
+    ctx.strokeStyle='#1b2129'; ctx.lineWidth=1;
+    for(let gx=0; gx<CW; gx+=20){ ctx.beginPath(); ctx.moveTo(gx,0); ctx.lineTo(gx,CH); ctx.stroke(); }
+    for(let gy=0; gy<CH; gy+=20){ ctx.beginPath(); ctx.moveTo(0,gy); ctx.lineTo(CW,gy); ctx.stroke(); }
+    ctx.strokeStyle='#3a4150'; ctx.beginPath(); ctx.moveTo(CW/2,0); ctx.lineTo(CW/2,CH); ctx.moveTo(0,CH/2); ctx.lineTo(CW,CH/2); ctx.stroke();
+  }
+
+  const zoom = camera.zoom||1;
+  sprites.forEach(sp=>{
+    if(!sp.visible) return;
+    const p = worldToScreen(sp.x, sp.y);
+    ctx.save();
+    ctx.translate(p.x,p.y);
+    ctx.rotate((sp.rotation+(camera.rotation||0))*Math.PI/180);
+    ctx.scale(zoom, zoom);
+    ctx.fillStyle = sp.color;
+    ctx.strokeStyle = sp.id===selectedId ? '#ffffff' : 'rgba(0,0,0,.4)';
+    ctx.lineWidth = sp.id===selectedId ? 2 : 1;
+    if(sp.shape==='circle'){
+      ctx.beginPath(); ctx.arc(0,0,sp.w/2,0,Math.PI*2); ctx.fill(); ctx.stroke();
+      ctx.beginPath(); ctx.moveTo(0,0); ctx.lineTo(sp.w/2,0); ctx.strokeStyle='rgba(255,255,255,.6)'; ctx.stroke();
+    } else {
+      ctx.fillRect(-sp.w/2,-sp.h/2,sp.w,sp.h);
+      ctx.strokeRect(-sp.w/2,-sp.h/2,sp.w,sp.h);
+      ctx.beginPath(); ctx.moveTo(0,0); ctx.lineTo(sp.w/2,0); ctx.strokeStyle='rgba(255,255,255,.6)'; ctx.stroke();
+    }
+    ctx.restore();
+  });
+}
+
+/* ======================= EXECUTION ENGINE ======================= */
+const keysDown = new Set();
+window.addEventListener('keydown', e=>{
+  const k = resolveKey(e);
+  if(k){ keysDown.add(k); if(running) triggerKeyScripts(k,'press'); }
+});
+window.addEventListener('keyup', e=>{
+  const k = resolveKey(e);
+  if(k){ keysDown.delete(k); if(running) triggerKeyScripts(k,'release'); }
+});
+
+function checkSensor(sprite, condition){
+  if(condition==='edge'){
+    const relX = sprite.x - camera.x, relY = sprite.y - camera.y;
+    return relX < -CW/2+sprite.w/2 || relX > CW/2-sprite.w/2 || relY < -CH/2+sprite.h/2 || relY > CH/2-sprite.h/2;
+  }
+  if(condition && condition.startsWith('key_')) return keysDown.has(condition.slice(4));
+  return false;
+}
+
+function* execBlocks(sprite, blocks){
+  for(const block of blocks){ yield* execBlock(sprite, block); }
+}
+function* execBlock(sprite, block){
+  const p = block.params||{};
+  switch(block.defId){
+    case 'move_steps':{
+      const rad = sprite.rotation*Math.PI/180;
+      sprite.x += Math.cos(rad)*Number(p.steps||0);
+      sprite.y += Math.sin(rad)*Number(p.steps||0);
+      break;
+    }
+    case 'turn_degrees': sprite.rotation += Number(p.degrees||0); break;
+    case 'goto_xy': sprite.x = Number(p.x||0); sprite.y = Number(p.y||0); break;
+    case 'change_x': sprite.x += Number(p.dx||0); break;
+    case 'change_y': sprite.y += Number(p.dy||0); break;
+    case 'goto_mouse': sprite.x = lastMouse.x; sprite.y = lastMouse.y; break;
+    case 'goto_touch': sprite.x = lastTouch.x; sprite.y = lastTouch.y; break;
+    case 'create_camera': camera.x = 0; camera.y = 0; break;
+    case 'move_camera': camera.x += Number(p.dx||0); camera.y += Number(p.dy||0); break;
+    case 'rotate_camera': camera.rotation = (camera.rotation||0) + Number(p.degrees||0); break;
+    case 'zoom_in_camera': camera.zoom = Math.max(0.2, Math.min(5, (camera.zoom||1) + Number(p.amount||0))); break;
+    case 'zoom_out_camera': camera.zoom = Math.max(0.2, Math.min(5, (camera.zoom||1) - Number(p.amount||0))); break;
+    case 'camera_shake':{
+      camera.shakeMagnitude = Number(p.intensity||0);
+      camera.shakeUntil = performance.now() + Number(p.duration||0)*1000;
+      break;
+    }
+    case 'track_camera': camera.trackName = p.target || null; break;
+    case 'create_scene':{
+      const name = p.name || 'Scene';
+      if(!scenes[name]) scenes[name] = {sprites:[]};
+      break;
+    }
+    case 'save_scene':{
+      const name = p.name || 'Scene';
+      scenes[name] = {sprites: sprites.map(snapshotSprite)};
+      break;
+    }
+    case 'open_scene':{
+      const scene = scenes[p.name];
+      if(scene) loadSceneSprites(scene.sprites);
+      break;
+    }
+    case 'duplicate_scene':{
+      const from = scenes[p.from];
+      if(from){ scenes[p.to] = {sprites: from.sprites.map(snapshotSprite)}; }
+      break;
+    }
+    case 'delete_scene': delete scenes[p.name]; break;
+    case 'change_scene':{
+      const scene = scenes[p.name];
+      if(scene) loadSceneSprites(scene.sprites);
+      break;
+    }
+    case 'add_costume':{
+      if(!sprite.costumes) sprite.costumes = [];
+      sprite.costumes.push({name:p.name||'costume', color:p.color||sprite.color, shape:sprite.shape});
+      break;
+    }
+    case 'switch_costume':{
+      const cst = (sprite.costumes||[]).find(c=>c.name===p.name);
+      if(cst){ sprite.color = cst.color; if(cst.shape) sprite.shape = cst.shape; }
+      break;
+    }
+    case 'play_animation':{
+      sprite.animPlaying = true; sprite.animPaused = false; sprite.animFps = Number(p.fps||4);
+      break;
+    }
+    case 'stop_animation':{
+      sprite.animPlaying = false; sprite.animPaused = false; sprite._animIndex = 0;
+      break;
+    }
+    case 'pause_animation': sprite.animPaused = true; break;
+    case 'glide_from_to':{
+      const fx=Number(p.fromX||0), fy=Number(p.fromY||0), tx=Number(p.toX||0), ty=Number(p.toY||0);
+      const dur = Number(p.seconds||0)*1000;
+      sprite.x = fx; sprite.y = fy;
+      const start = performance.now();
+      if(dur<=0){ sprite.x=tx; sprite.y=ty; break; }
+      let elapsed = 0;
+      while(elapsed < dur){
+        elapsed = performance.now()-start;
+        const frac = Math.min(1, elapsed/dur);
+        sprite.x = fx + (tx-fx)*frac;
+        sprite.y = fy + (ty-fy)*frac;
+        yield;
+      }
+      sprite.x = tx; sprite.y = ty;
+      break;
+    }
+    case 'play_sound': playTone(Number(p.freq||440), 0.3, false); break;
+    case 'stop_sound': stopAllTones(); break;
+    case 'play_music': playTone(Number(p.freq||330), 0, true); break;
+    case 'stop_music': stopMusic(); break;
+    case 'set_volume': setMasterVolume(Number(p.level||80)); break;
+    /* ---- Save / Load ---- */
+    case 'save_game':{ const slot = p.slot||'save1'; try{ localStorage.setItem('untekgo_'+slot, JSON.stringify({sprites:sprites.map(snapshotSprite), scenes})); }catch(e){} break; }
+    case 'load_game':{ const slot = p.slot||'save1'; try{ const raw = localStorage.getItem('untekgo_'+slot); if(raw){ const data=JSON.parse(raw); if(data.scenes) Object.assign(scenes,data.scenes); if(data.sprites) loadSceneSprites(data.sprites); } }catch(e){} break; }
+    case 'delete_save':{ try{ localStorage.removeItem('untekgo_'+(p.slot||'save1')); }catch(e){} break; }
+    /* ---- Custom blocks ---- */
+    case 'create_block': yield* execBlocks(sprite, block.body||[]); break;
+    case 'edit_block': break;
+    case 'delete_block': break;
+    case 'import_block': break;
+    case 'export_block': break;
+    case 'create_ai': openAIModal(sprite); break;
+    /* ---- AI / targeting ---- */
+    case 'set_target': sprite._aiTarget = p.name||''; break;
+    case 'goto_target':{
+      const target = sprites.find(s=>s.name===(sprite._aiTarget||p.name||'') && s.id!==sprite.id);
+      if(target){
+        const dx=target.x-sprite.x, dy=target.y-sprite.y, dist=Math.sqrt(dx*dx+dy*dy);
+        const spd = Number(p.speed||2);
+        if(dist>spd){ sprite.x+=dx/dist*spd; sprite.y+=dy/dist*spd; }
+        else{ sprite.x=target.x; sprite.y=target.y; }
+      }
+      break;
+    }
+    case 'look_at':{
+      const tgt = sprites.find(s=>s.name===(p.name||sprite._aiTarget||'') && s.id!==sprite.id);
+      if(tgt){ sprite.rotation = Math.atan2(-(tgt.y-sprite.y), tgt.x-sprite.x)*180/Math.PI; }
+      break;
+    }
+    case 'make_decision': yield* execBlocks(sprite, block.body||[]); break;
+    case 'create_enemy':{
+      const exists = sprites.find(s=>s.name===p.name);
+      if(!exists){ const en = makeSprite(p.name||'Enemy', p.color||'#e6615a', sprite.x+60, sprite.y); en.script=[hatBlock()]; sprites.push(en); renderSpriteList(); }
+      break;
+    }
+    case 'follow_player':{
+      const plyr = sprites.find(s=>s.name==='Player'||s._isPlayer);
+      if(plyr){
+        const dx=plyr.x-sprite.x, dy=plyr.y-sprite.y, dist=Math.sqrt(dx*dx+dy*dy);
+        const spd = Number(p.speed||2);
+        if(dist>spd){ sprite.x+=dx/dist*spd; sprite.y+=dy/dist*spd; }
+      }
+      break;
+    }
+    case 'attack':{
+      const tgt2 = sprites.find(s=>s.name===(sprite._aiTarget||'Player')||s._isPlayer);
+      if(tgt2 && spritesOverlap(sprite,tgt2)){ tgt2._health=(tgt2._health||100)-Number(p.damage||10); }
+      break;
+    }
+    case 'patrol':{
+      if(sprite._patrolDir===undefined){ sprite._patrolOrigin=sprite.x; sprite._patrolDir=1; }
+      const range=Number(p.range||80);
+      if(sprite.x>=sprite._patrolOrigin+range) sprite._patrolDir=-1;
+      if(sprite.x<=sprite._patrolOrigin-range) sprite._patrolDir=1;
+      sprite.x+=sprite._patrolDir*2;
+      sprite.rotation = sprite._patrolDir>0?0:180;
+      break;
+    }
+    case 'find_target':{
+      const range=Number(p.range||150);
+      const found=sprites.find(s=>s.id!==sprite.id&&s.visible&&Math.hypot(s.x-sprite.x,s.y-sprite.y)<range);
+      if(found) sprite._aiTarget=found.name;
+      break;
+    }
+    /* ---- Player ---- */
+    case 'create_player':{
+      const pexists = sprites.find(s=>s.name===p.name);
+      if(!pexists){ const pl=makeSprite(p.name||'Player',p.color||'#5aa9e6',0,0); pl._isPlayer=true; pl._health=100; sprites.push(pl); renderSpriteList(); }
+      else{ pexists._isPlayer=true; if(pexists._health===undefined) pexists._health=100; }
+      break;
+    }
+    case 'set_health': sprite._health=Number(p.value||100); break;
+    case 'add_health': sprite._health=Math.min(100,(sprite._health||100)+Number(p.amount||10)); break;
+    case 'reduce_health':{
+      sprite._health=(sprite._health||100)-Number(p.amount||10);
+      if(sprite._health<=0){ sprite._health=0; yield* execBlocks(sprite, block.body||[]); }
+      break;
+    }
+    case 'on_die': if((sprite._health||100)<=0) yield* execBlocks(sprite, block.body||[]); break;
+    case 'dash':{
+      const rad=sprite.rotation*Math.PI/180;
+      const spd=Number(p.speed||12);
+      const dur=Number(p.seconds||0.2)*1000;
+      const start=performance.now();
+      while(performance.now()-start<dur){ sprite.x+=Math.cos(rad)*spd; sprite.y+=Math.sin(rad)*spd; yield; }
+      break;
+    }
+    /* ---- Events ---- */
+    case 'send_event':
+    case 'broadcast_event':{
+      const evName=p.name||'myEvent';
+      sprites.forEach(sp2=>{
+        const h=sp2.script[0];
+        if(h&&h.defId==='hat'&&h.params.event==='receive'&&h.params.key===evName){ startScriptFor(sp2,'receive'); }
+      });
+      break;
+    }
+    case 'receive_event': yield* execBlocks(sprite, block.body||[]); break;
+    case 'wait_seconds':{
+      const until = performance.now() + Number(p.seconds||0)*1000;
+      while(performance.now() < until) yield;
+      break;
+    }
+    case 'repeat_times':{
+      const n = Number(p.times||0);
+      for(let i=0;i<n;i++){ yield* execBlocks(sprite, block.body||[]); yield; }
+      break;
+    }
+    case 'repeat_forever':{
+      while(true){ yield* execBlocks(sprite, block.body||[]); yield; }
+    }
+    case 'if_then':{
+      if(checkSensor(sprite, p.condition)) yield* execBlocks(sprite, block.body||[]);
+      break;
+    }
+    case 'set_color': sprite.color = p.color || sprite.color; break;
+    case 'show': sprite.visible = true; break;
+    case 'hide': sprite.visible = false; break;
+    case 'define_function': yield* execBlocks(sprite, block.body||[]); break;
+    case 'unl_block': /* UNL interpreter not implemented yet */ break;
+  }
+}
+
+let running = false;
+let rafId = null;
+let showGrid = true;
+
+function startScriptFor(sprite, event){
+  const stack = sprite.script.filter(b=>b.defId!=='hat');
+  const runner = execBlocks(sprite, stack);
+  sprite._runners.push(runner);
+}
+function triggerKeyScripts(key, mode){
+  sprites.forEach(sp=>{
+    const hat = sp.script[0];
+    if(hat && hat.defId==='hat' && hat.params.event===mode && (hat.params.key||'right')===key){
+      startScriptFor(sp, mode+':'+key);
+    }
+  });
+}
+
+function runAll(){
+  if(running) return;
+  running = true;
+  camera = {x:0, y:0, zoom:1, rotation:0, shakeUntil:0, shakeMagnitude:0, shakeX:0, shakeY:0, trackName:null};
+  const btn = document.getElementById('btnToggleRun');
+  btn.classList.remove('run'); btn.classList.add('stop');
+  btn.textContent = '■'; btn.title = t('stop');
+  document.getElementById('status').textContent = t('running');
+  sprites.forEach(sp=>{
+    sp._runners = [];
+    const hat = sp.script[0];
+    if(hat && hat.defId==='hat' && hat.params.event==='start'){
+      startScriptFor(sp,'start');
+    }
+  });
+  loop();
+}
+function stopAll(){
+  running=false;
+  if(rafId) cancelAnimationFrame(rafId);
+  const btn = document.getElementById('btnToggleRun');
+  btn.classList.remove('stop'); btn.classList.add('run');
+  btn.textContent = '▶'; btn.title = t('run');
+  document.getElementById('status').textContent = t('stopped');
+  sprites.forEach(sp=> sp._runners = []);
+  stopAllTones(); stopMusic();
+  camera = {x:0, y:0, zoom:1, rotation:0, shakeUntil:0, shakeMagnitude:0, shakeX:0, shakeY:0, trackName:null};
+  drawStage();
+}
+function spritesOverlap(a,b){
+  return Math.abs(a.x-b.x) < (a.w+b.w)/2 && Math.abs(a.y-b.y) < (a.h+b.h)/2;
+}
+function loop(){
+  if(!running) return;
+  sprites.forEach(sp=>{
+    if(sp._aiFn){ try{ sp._aiFn(sp, sprites, camera, scenes); }catch(e){} }
+    const hat = sp.script[0];
+    if(hat && hat.defId==='hat' && hat.params.event==='touch_sprite'){
+      const target = sprites.find(s=>s.name===hat.params.target && s.id!==sp.id);
+      const touching = !!(target && sp.visible && target.visible && spritesOverlap(sp,target));
+      if(touching && !sp._touchSpriteActive){ startScriptFor(sp,'touch_sprite'); }
+      sp._touchSpriteActive = touching;
+    }
+    if(sp.animPlaying && !sp.animPaused && sp.costumes && sp.costumes.length){
+      const now = performance.now();
+      if(now - (sp._animLastTime||0) > 1000/Math.max(1,sp.animFps||4)){
+        sp._animLastTime = now;
+        sp._animIndex = ((sp._animIndex||0)+1) % sp.costumes.length;
+        const cst = sp.costumes[sp._animIndex];
+        sp.color = cst.color; if(cst.shape) sp.shape = cst.shape;
+      }
+    }
+  });
+  sprites.forEach(sp=>{
+    sp._runners = sp._runners.filter(r=>{
+      const res = r.next();
+      return !res.done;
+    });
+  });
+  drawStage();
+  rafId = requestAnimationFrame(loop);
+}
+
+/* ======================= WIRING ======================= */
+document.getElementById('btnToggleRun').addEventListener('click', ()=>{
+  if(running) stopAll(); else runAll();
+});
+document.getElementById('btnAddSprite2').addEventListener('click', addSprite);
+
+/* ---- AI code modal ---- */
+let aiModalSprite = null;
+function openAIModal(sprite){
+  aiModalSprite = sprite;
+  const ai = sprite._ai||{csharp:'',js:'',unl:''};
+  document.getElementById('aiCsharp').value = ai.csharp||'';
+  document.getElementById('aiJs').value = ai.js||'';
+  document.getElementById('aiUnl').value = ai.unl||'';
+  document.getElementById('aiModalOverlay').classList.add('open');
+}
+document.querySelectorAll('.ai-tab').forEach(tab=>{
+  tab.addEventListener('click', ()=>{
+    document.querySelectorAll('.ai-tab').forEach(t=>t.classList.remove('active'));
+    document.querySelectorAll('.ai-panel').forEach(p=>p.classList.remove('active'));
+    tab.classList.add('active');
+    document.querySelector('.ai-panel[data-panel="'+tab.dataset.lang+'"]').classList.add('active');
+  });
+});
+document.getElementById('aiModalCancel').addEventListener('click', ()=>{
+  aiModalSprite=null; document.getElementById('aiModalOverlay').classList.remove('open');
+});
+document.getElementById('aiModalOverlay').addEventListener('click', e=>{
+  if(e.target.id==='aiModalOverlay'){ aiModalSprite=null; document.getElementById('aiModalOverlay').classList.remove('open'); }
+});
+document.getElementById('aiModalSave').addEventListener('click', ()=>{
+  if(aiModalSprite){
+    const js = document.getElementById('aiJs').value.trim();
+    aiModalSprite._ai = {
+      csharp: document.getElementById('aiCsharp').value,
+      js, unl: document.getElementById('aiUnl').value
+    };
+    if(js){ try{ const fn=new Function('sprite','sprites','camera','scenes',js); aiModalSprite._aiFn=fn; }catch(e){ console.warn('AI JS error:',e); } }
+  }
+  aiModalSprite=null; document.getElementById('aiModalOverlay').classList.remove('open');
+});
+/* ======================= UNL EDITOR ENGINE ======================= */
+let unlModalBlock = null;
+let unlNodes = [];
+let unlNodeIdCounter = 1;
+let unlAnimations = [];
+let unlSelectedAnim = null;
+let unlAnimPlaying = false;
+let unlAnimFrame = null;
+let unlAnimCurrentFrame = 0;
+let unlConsoleLogs = [];
+let unlCurrentLang = 'unl';
+
+/* ---- Syntax highlighting ---- */
+function unlHighlight(code, lang){
+  const esc = s=>s.replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
+  if(lang==='js'){
+    return esc(code)
+      .replace(/\/\/[^\n]*/g, m=>`<span class="syn-cmt">${m}</span>`)
+      .replace(/\/\*[\s\S]*?\*\//g, m=>`<span class="syn-cmt">${m}</span>`)
+      .replace(/\b(function|const|let|var|if|else|for|while|return|new|class|import|export|this|true|false|null|undefined)\b/g, '<span class="syn-kw">$1</span>')
+      .replace(/"([^"]*)"|'([^']*)'/g, m=>`<span class="syn-str">${m}</span>`)
+      .replace(/\b(\d+\.?\d*)\b/g, '<span class="syn-num">$1</span>');
+  }
+  if(lang==='csharp'){
+    return esc(code)
+      .replace(/\/\/[^\n]*/g, m=>`<span class="syn-cmt">${m}</span>`)
+      .replace(/\/\*[\s\S]*?\*\//g, m=>`<span class="syn-cmt">${m}</span>`)
+      .replace(/\b(using|namespace|class|public|private|void|int|float|string|bool|if|else|for|while|return|new|true|false|null|static)\b/g, '<span class="syn-kw">$1</span>')
+      .replace(/"([^"]*)"/g, m=>`<span class="syn-str">${m}</span>`)
+      .replace(/\b(\d+\.?\d*)\b/g, '<span class="syn-num">$1</span>');
+  }
+  /* UNL */
+  return esc(code)
+    .replace(/\/\/[^\n]*/g, m=>`<span class="syn-cmt">${m}</span>`)
+    .replace(/\/\*[\s\S]*?\*\//g, m=>`<span class="syn-cmt">${m}</span>`)
+    .replace(/\b(If|Elif|Else|While|for|in|Break|print|un\.game|unteck run\.u\(bg\))\b/g,'<span class="syn-kw">$1</span>')
+    .replace(/(==|!=|>=|<=|>|<|&&|\|\||!|AND|OR|NOT)/g,'<span class="syn-op">$1</span>')
+    .replace(/"([^"]*)"/g, m=>`<span class="syn-str">${m}</span>`)
+    .replace(/\b(\d+\.?\d*)\b/g,'<span class="syn-num">$1</span>')
+    .replace(/\b(pi:\$:|true|false|null)\b/g,'<span class="syn-const">$1</span>');
+}
+
+function unlUpdateEditor(){
+  const ta = document.getElementById('unlModalTextarea');
+  const hl = document.getElementById('unlHighlight');
+  const ln = document.getElementById('unlLineNums');
+  if(!ta||!hl||!ln) return;
+  const code = ta.value;
+  hl.innerHTML = unlHighlight(code, unlCurrentLang) + '\n';
+  const lines = code.split('\n').length;
+  ln.innerHTML = Array.from({length:lines},(_,i)=>`<div>${i+1}</div>`).join('');
+  hl.scrollTop = ta.scrollTop;
+  hl.scrollLeft = ta.scrollLeft;
+  document.getElementById('unlStatusBar').textContent =
+    `UNL v1.0 — ${lines} lines — ${unlCurrentLang.toUpperCase()}`;
+}
+
+function unlInsert(text){
+  const ta = document.getElementById('unlModalTextarea');
+  if(!ta) return;
+  const s=ta.selectionStart, e=ta.selectionEnd;
+  ta.value = ta.value.slice(0,s)+text+ta.value.slice(e);
+  ta.selectionStart = ta.selectionEnd = s+text.length;
+  ta.focus(); unlUpdateEditor();
+}
+
+/* ---- Simple UNL interpreter ---- */
+function runUNL(code){
+  const log = (msg,cls='con-out')=>{
+    const d=document.createElement('div'); d.className='con-line '+cls; d.textContent=msg;
+    const out=document.getElementById('unlConsoleOutput');
+    if(out){ out.appendChild(d); out.scrollTop=out.scrollHeight; }
+    unlConsoleLogs.push({msg,cls});
+  };
+  try{
+    const stripped = code
+      .replace(/un\.game/,'')
+      .replace(/unteck run\.u\(bg\)/,'')
+      .replace(/\/\/[^\n]*/g,'')
+      .replace(/\/\*[\s\S]*?\*\//g,'');
+    const vars = {pi:Math.PI, 'pi:$:':Math.PI, true:true, false:false};
+    const lines = stripped.split('\n').map(l=>l.trim()).filter(Boolean);
+    let i=0;
+    function peek(){ return lines[i]||''; }
+    function parseVal(s){
+      s=s.trim();
+      if(s==='pi:$:'||s==='pi') return Math.PI;
+      if(s==='true') return true;
+      if(s==='false') return false;
+      if(/^".*"$/.test(s)) return s.slice(1,-1);
+      if(!isNaN(s)) return Number(s);
+      if(vars[s]!==undefined) return vars[s];
+      return s;
+    }
+    function evalExpr(expr){
+      expr=expr.trim().replace(/AND/g,'&&').replace(/OR/g,'||').replace(/NOT/g,'!');
+      expr=expr.replace(/\bpi:\$:\b/g,Math.PI).replace(/\bpi\b/g,Math.PI);
+      for(const k of Object.keys(vars)){
+        if(k!=='pi:$:'&&k!=='pi') expr=expr.replace(new RegExp('\\b'+k+'\\b','g'),JSON.stringify(vars[k]));
+      }
+      try{ return Function('"use strict"; return ('+expr+')')(); }catch(e){ return undefined; }
+    }
+    while(i<lines.length){
+      const line=lines[i];
+      if(line.startsWith('print(')){
+        const inner=line.slice(6,-1).trim();
+        log('→ '+evalExpr(inner));
+        i++; continue;
+      }
+      const assignM = line.match(/^(\w+)\s*=\s*<(.+)>:?$/);
+      if(assignM){ vars[assignM[1]]=assignM[2].split(',').map(v=>parseVal(v.trim())); i++; continue; }
+      const assign2 = line.match(/^(\w+)\s*=\s*(.+):?$/);
+      if(assign2&&!line.startsWith('If')&&!line.startsWith('Elif')&&!line.startsWith('Else')&&!line.startsWith('While')&&!line.startsWith('for')){
+        vars[assign2[1]]=evalExpr(assign2[2]); i++; continue;
+      }
+      const ifM = line.match(/^If\((.+)\)=\{/);
+      if(ifM){
+        const cond=evalExpr(ifM[1]); i++;
+        const body=[]; let depth=1;
+        while(i<lines.length&&depth>0){ const l=lines[i]; if(l.endsWith('{')) depth++; if(l.startsWith('}:')) depth--; if(depth>0) body.push(l); i++; }
+        if(cond) runBlock(body);
+        while(i<lines.length&&(lines[i].startsWith('Elif')||lines[i].startsWith('Else'))){
+          const el=lines[i];
+          const eliM=el.match(/^Elif\((.+)\)=\{/);
+          const elsM=el.startsWith('Else={');
+          i++;
+          const eBody=[]; let ed=1;
+          while(i<lines.length&&ed>0){ const l2=lines[i]; if(l2.endsWith('{')) ed++; if(l2.startsWith('}:')) ed--; if(ed>0) eBody.push(l2); i++; }
+          if(!cond&&eliM&&evalExpr(eliM[1])) runBlock(eBody);
+          else if(!cond&&elsM) runBlock(eBody);
+        }
+        continue;
+      }
+      const wM = line.match(/^While\.(t|f);\((\w+)\)\+\[/);
+      if(wM){
+        const isTrue=wM[1]==='t'; i++;
+        const body=[]; let depth=1;
+        while(i<lines.length&&depth>0){ const l=lines[i]; if(l.includes('[')) depth++; if(l.startsWith(']:')) depth--; if(depth>0) body.push(l); i++; }
+        let safety=0;
+        while(safety++<500&&(isTrue?true:false)){ runBlock(body); if(body.includes('Break('+wM[2]+')')) break; }
+        continue;
+      }
+      const forM = line.match(/^for\s+(\w+)\s+in\s+(\w+)=\{/);
+      if(forM){
+        const arr=vars[forM[2]]||[]; i++;
+        const body=[]; let depth=1;
+        while(i<lines.length&&depth>0){ const l=lines[i]; if(l.endsWith('{')) depth++; if(l.startsWith('}:')) depth--; if(depth>0) body.push(l); i++; }
+        for(const item of arr){ vars[forM[1]]=item; runBlock(body); }
+        continue;
+      }
+      i++;
+    }
+    function runBlock(blk){ blk.forEach(l=>{ const tmp=i; lines.splice(i,0,...blk); i=tmp; }); }
+    log('✓ Done','con-info');
+  }catch(err){ log('✗ '+err.message,'con-err'); }
+}
+
+/* ---- Tab switching ---- */
+document.querySelectorAll('.unl-etab').forEach(tab=>{
+  tab.addEventListener('click',()=>{
+    document.querySelectorAll('.unl-etab').forEach(t=>t.classList.remove('active'));
+    document.querySelectorAll('.unl-epanel').forEach(p=>p.classList.remove('active'));
+    tab.classList.add('active');
+    const panel = document.getElementById('unlPanel'+tab.dataset.panel.charAt(0).toUpperCase()+tab.dataset.panel.slice(1));
+    if(panel) panel.classList.add('active');
+  });
+});
+
+/* ---- Language switch ---- */
+document.getElementById('unlLangSwitch').addEventListener('change', e=>{
+  unlCurrentLang = e.target.value;
+  const fn = document.getElementById('unlFileName');
+  if(fn) fn.textContent = (unlModalBlock?'script':'code')+(unlCurrentLang==='csharp'?'.cs':'.'+unlCurrentLang);
+  unlUpdateEditor();
+});
+
+/* ---- Textarea sync ---- */
+document.getElementById('unlModalTextarea').addEventListener('input', unlUpdateEditor);
+document.getElementById('unlModalTextarea').addEventListener('scroll', ()=>{
+  const ta=document.getElementById('unlModalTextarea');
+  const hl=document.getElementById('unlHighlight');
+  const ln=document.getElementById('unlLineNums');
+  if(hl){ hl.scrollTop=ta.scrollTop; hl.scrollLeft=ta.scrollLeft; }
+  if(ln) ln.scrollTop=ta.scrollTop;
+});
+document.getElementById('unlModalTextarea').addEventListener('keydown', e=>{
+  if(e.key==='Tab'){ e.preventDefault(); unlInsert('    '); }
+});
+
+/* ---- Run button ---- */
+document.getElementById('unlRunBtn').addEventListener('click',()=>{
+  const code=document.getElementById('unlModalTextarea').value;
+  document.getElementById('unlConsoleOutput').innerHTML='';
+  if(unlCurrentLang==='js'){
+    try{ Function('sprite','sprites','camera','scenes',code)(selected(),sprites,camera,scenes); }
+    catch(e){ const d=document.createElement('div'); d.className='con-line con-err'; d.textContent='✗ '+e.message; document.getElementById('unlConsoleOutput').appendChild(d); }
+  } else if(unlCurrentLang==='unl'){ runUNL(code); }
+  else { const d=document.createElement('div'); d.className='con-line con-info'; d.textContent='C# requires a .NET runtime — use JS or UNL to test here.'; document.getElementById('unlConsoleOutput').appendChild(d); }
+  document.querySelector('.unl-etab[data-panel="console"]').click();
+});
+
+/* ---- Console input ---- */
+document.getElementById('unlConsoleSend').addEventListener('click',()=>{
+  const cmd=document.getElementById('unlConsoleCmd');
+  const val=cmd.value.trim(); if(!val) return;
+  const d=document.createElement('div'); d.className='con-line con-in'; d.textContent='> '+val;
+  document.getElementById('unlConsoleOutput').appendChild(d);
+  runUNL(val);
+  cmd.value='';
+});
+document.getElementById('unlConsoleCmd').addEventListener('keydown',e=>{ if(e.key==='Enter') document.getElementById('unlConsoleSend').click(); });
+
+/* ---- Nodes ---- */
+function addUnlNode(type, label, colorClass){
+  const area = document.getElementById('unlNodeArea');
+  if(!area) return;
+  const id='n'+(unlNodeIdCounter++);
+  const x=80+Math.random()*400, y=60+Math.random()*200;
+  const node={id,type,label,x,y,code:'',colorClass};
+  unlNodes.push(node);
+  const el=document.createElement('div');
+  el.className='unl-node '+colorClass; el.id='node-'+id;
+  el.style.left=x+'px'; el.style.top=y+'px';
+  el.innerHTML=`<div class="unl-node-title">${type}</div>
+    <div class="unl-node-row"><span class="unl-node-port"></span><b>${label}</b><span class="unl-node-port"></span></div>
+    <div style="margin-top:4px;font-size:11px;color:rgba(0,0,0,.5);">id: ${id}</div>`;
+  let dragging=false, ox=0, oy=0;
+  el.addEventListener('pointerdown',ev=>{
+    if(ev.target.classList.contains('unl-node-port')) return;
+    dragging=true; el.classList.add('dragging');
+    ox=ev.clientX-node.x; oy=ev.clientY-node.y;
+    el.setPointerCapture(ev.pointerId);
+  });
+  el.addEventListener('pointermove',ev=>{ if(!dragging) return; node.x=ev.clientX-ox; node.y=ev.clientY-oy; el.style.left=node.x+'px'; el.style.top=node.y+'px'; });
+  el.addEventListener('pointerup',()=>{ dragging=false; el.classList.remove('dragging'); });
+  area.appendChild(el);
+}
+
+/* ---- Animation panel ---- */
+document.getElementById('btnAddAnim').addEventListener('click',()=>{
+  const s=selected(); if(!s) return;
+  const costumeList=s.costumes||[];
+  if(!costumeList.length){ alert(LANG==='ar'?'أضف مظاهر للعنصر أولاً في قوالب "إضافة صورة"':'Add costumes to the sprite first via "add costume" blocks.'); return; }
+  const name=prompt(LANG==='ar'?'اسم الحركة:':'Animation name:','walk');
+  if(!name) return;
+  unlAnimations.push({name, frames:costumeList.map(c=>({...c})), fps:4});
+  renderUnlAnimList();
+});
+
+function renderUnlAnimList(){
+  const list=document.getElementById('unlAnimList'); if(!list) return;
+  list.innerHTML='';
+  unlAnimations.forEach((anim,i)=>{
+    const item=document.createElement('div'); item.className='unl-anim-item'+(unlSelectedAnim===i?' selected':'');
+    const swatch=document.createElement('div'); swatch.className='unl-anim-swatch';
+    swatch.style.background=anim.frames[0]?anim.frames[0].color:'#888';
+    const name=document.createElement('span'); name.textContent=anim.name+' ('+anim.frames.length+' frames)';
+    const del=document.createElement('button'); del.textContent='✕'; del.className='btn'; del.style.marginLeft='auto';
+    del.addEventListener('click',e=>{ e.stopPropagation(); unlAnimations.splice(i,1); if(unlSelectedAnim===i) unlSelectedAnim=null; renderUnlAnimList(); });
+    item.appendChild(swatch); item.appendChild(name); item.appendChild(del);
+    item.addEventListener('click',()=>{ unlSelectedAnim=i; renderUnlAnimList(); });
+    list.appendChild(item);
+  });
+}
+
+document.getElementById('unlAnimPlay').addEventListener('click',()=>{
+  if(unlSelectedAnim===null||!unlAnimations[unlSelectedAnim]) return;
+  unlAnimPlaying=true; unlAnimCurrentFrame=0;
+  const fps=parseInt(document.getElementById('unlAnimFps').value)||4;
+  function frameStep(){
+    if(!unlAnimPlaying) return;
+    const anim=unlAnimations[unlSelectedAnim]; if(!anim) return;
+    const frame=anim.frames[unlAnimCurrentFrame%anim.frames.length];
+    const c=document.getElementById('unlAnimCanvas');
+    const ctx=c.getContext('2d');
+    ctx.clearRect(0,0,c.width,c.height);
+    ctx.fillStyle=frame.color||'#5aa9e6';
+    if((frame.shape||'square')==='circle'){ ctx.beginPath(); ctx.arc(100,100,60,0,Math.PI*2); ctx.fill(); }
+    else { ctx.fillRect(40,40,120,120); }
+    ctx.fillStyle='rgba(255,255,255,.15)'; ctx.font='12px monospace'; ctx.fillText('Frame '+(unlAnimCurrentFrame%anim.frames.length+1)+'/'+anim.frames.length,10,185);
+    unlAnimCurrentFrame++;
+    unlAnimFrame=setTimeout(frameStep, 1000/fps);
+  }
+  frameStep();
+});
+document.getElementById('unlAnimStop').addEventListener('click',()=>{
+  unlAnimPlaying=false; if(unlAnimFrame) clearTimeout(unlAnimFrame);
+  const c=document.getElementById('unlAnimCanvas');
+  c.getContext('2d').clearRect(0,0,c.width,c.height);
+});
+
+/* ---- Download file ---- */
+document.getElementById('unlDownloadBtn').addEventListener('click',()=>{
+  const code=document.getElementById('unlModalTextarea').value;
+  const ext=unlCurrentLang==='csharp'?'cs':unlCurrentLang;
+  const blob=new Blob([code],{type:'text/plain'});
+  const a=document.createElement('a'); a.href=URL.createObjectURL(blob);
+  a.download='script.'+ext; a.click();
+});
+
+/* ---- Open / Close ---- */
+function openUnlModal(block){
+  unlModalBlock=block;
+  const ta=document.getElementById('unlModalTextarea');
+  const code=block.params.code||'un.game\n\n// write your UNL code here\n\nunteck run.u(bg)';
+  ta.value=code;
+  unlCurrentLang='unl';
+  document.getElementById('unlLangSwitch').value='unl';
+  document.getElementById('unlFileName').textContent='script.unl';
+  unlAnimations=[]; renderUnlAnimList();
+  const s=selected();
+  if(s&&s.costumes) unlAnimations=s.costumes.length?[{name:'default',frames:[...s.costumes],fps:4}]:[];
+  renderUnlAnimList();
+  unlUpdateEditor();
+  document.getElementById('unlModalOverlay').classList.add('open');
+  setTimeout(()=>ta.focus(),100);
+}
+function closeUnlModal(){
+  unlModalBlock=null; unlAnimPlaying=false;
+  if(unlAnimFrame) clearTimeout(unlAnimFrame);
+  document.getElementById('unlModalOverlay').classList.remove('open');
+}
+document.getElementById('unlModalCancel').addEventListener('click', closeUnlModal);
+document.getElementById('unlModalOverlay').addEventListener('click',e=>{ if(e.target.id==='unlModalOverlay') closeUnlModal(); });
+document.getElementById('unlModalSave').addEventListener('click',()=>{
+  if(unlModalBlock) unlModalBlock.params.code=document.getElementById('unlModalTextarea').value;
+  closeUnlModal();
+});
+
+document.getElementById('paletteSearch').addEventListener('input', e=> filterPalette(e.target.value));
+
+function setLang(lang){
+  LANG = lang;
+  document.documentElement.lang = lang;
+  document.documentElement.dir = lang==='ar' ? 'rtl' : 'ltr';
+  applyStaticTranslations();
+  renderPalette();
+  renderAll();
+  renderSettings();
+}
+function applyStaticTranslations(){
+  document.getElementById('btnAddSprite2').title = t('addSpriteTitle');
+  document.getElementById('navInterface').title = t('interfaceTab');
+  document.getElementById('navObjects').title = t('objects');
+  document.getElementById('navBlocks').title = t('blocksTab');
+  document.getElementById('navSettings').title = t('settingsTab');
+  document.getElementById('settingsTitle').textContent = t('settingsTitle');
+  document.getElementById('sceneTitle').textContent = t('scene');
+  document.getElementById('objectsTitle').textContent = t('objects');
+  document.getElementById('inspectorTitle').textContent = t('inspector');
+  document.getElementById('btnToggleRun').title = running ? t('stop') : t('run');
+  document.getElementById('trash-hint').textContent = t('trashHint');
+  document.getElementById('status').textContent = running ? t('running') : t('ready');
+  document.getElementById('paletteSearch').placeholder = t('searchPlaceholder');
+  const noRes = document.getElementById('paletteNoResults');
+  if(noRes) noRes.textContent = t('noResults');
+  const unlSave = document.getElementById('unlModalSave');
+  if(unlSave) unlSave.title = t('save');
+  const unlCancel = document.getElementById('unlModalCancel');
+  if(unlCancel) unlCancel.title = t('cancel');
+  const unlTa = document.getElementById('unlModalTextarea');
+  if(unlTa) unlTa.placeholder = t('unlPlaceholder');
+}
+
+function addSprite(){
+  const palette = ['#5aa9e6','#e6b34d','#9a6de6','#4dc0c8','#e6615a','#5fd08a'];
+  const color = palette[sprites.length % palette.length];
+  const sp = makeSprite(t('spriteNameDefault')+' '+(sprites.length+1), color, (sprites.length*30)%160-60, 0);
+  sprites.push(sp);
+  selectedId = sp.id;
+  renderAll();
+}
+
+function renderAll(){
+  renderSpriteList();
+  renderInspector();
+  rerenderWorkspace();
+  if(!running) drawStage();
+}
+
+/* ======================= SETTINGS AREA ======================= */
+function renderSettings(){
+  const body = document.getElementById('settingsBody');
+  body.innerHTML='';
+
+  // language switch
+  const langRow = document.createElement('div'); langRow.className='setting-row';
+  const langLabel = document.createElement('label'); langLabel.textContent = t('language');
+  const langBtns = document.createElement('div'); langBtns.style.display='flex'; langBtns.style.gap='8px';
+  const arBtn = document.createElement('button'); arBtn.className='btn'+(LANG==='ar'?' run':''); arBtn.textContent='AR';
+  arBtn.addEventListener('click', ()=> setLang('ar'));
+  const enBtn = document.createElement('button'); enBtn.className='btn'+(LANG==='en'?' run':''); enBtn.textContent='EN';
+  enBtn.addEventListener('click', ()=> setLang('en'));
+  langBtns.appendChild(arBtn); langBtns.appendChild(enBtn);
+  langRow.appendChild(langLabel); langRow.appendChild(langBtns);
+  body.appendChild(langRow);
+
+  // grid toggle
+  const gridRow = document.createElement('div'); gridRow.className='setting-row';
+  const gridLabel = document.createElement('label'); gridLabel.textContent = t('showGrid'); gridLabel.htmlFor='chkGrid';
+  const gridChk = document.createElement('input'); gridChk.type='checkbox'; gridChk.id='chkGrid'; gridChk.checked = showGrid;
+  gridChk.addEventListener('change', ()=>{ showGrid = gridChk.checked; drawStage(); });
+  gridRow.appendChild(gridLabel); gridRow.appendChild(gridChk);
+  body.appendChild(gridRow);
+
+  // reset project
+  const resetRow = document.createElement('div'); resetRow.className='setting-row';
+  const resetBtn = document.createElement('button'); resetBtn.className='btn danger'; resetBtn.textContent = t('resetProject');
+  resetBtn.addEventListener('click', ()=>{
+    if(!confirm(t('resetConfirm'))) return;
+    sprites = [makeSprite(t('playerName'),'#5aa9e6',60,0)];
+    selectedId = sprites[0].id;
+    scenes = {};
+    renderAll();
+  });
+  resetRow.appendChild(resetBtn);
+  body.appendChild(resetRow);
+
+  // block guide
+  const guideTitle = document.createElement('div'); guideTitle.className='sub-header'; guideTitle.style.marginTop='10px';
+  guideTitle.textContent = t('guideTitle');
+  body.appendChild(guideTitle);
+
+  ['event','motion','control','looks','function','camera','scene','costume','sound','saveload','custom','ai','player','events'].forEach(cat=>{
+    Object.entries(BLOCK_DEFS).forEach(([defId,def])=>{
+      if(def.cat!==cat) return;
+      const card = document.createElement('div'); card.className='guide-card';
+      const head = document.createElement('div'); head.className='guide-card-head '+(CAT_CLASS[cat]||'');
+      const sampleParams = {}; (def.fields||[]).forEach(f=> sampleParams[f.k]=f.def);
+      const sampleBlock = {uid:'doc-'+defId, defId, params: defId==='hat'?{event:'start'}:sampleParams, body: def.c?[]:null};
+      const dom = renderBlockDOM(sampleBlock, true);
+      dom.style.pointerEvents='none';
+      head.appendChild(dom);
+      const desc = document.createElement('div'); desc.className='guide-card-body';
+      desc.textContent = (BLOCK_DOCS[defId] && BLOCK_DOCS[defId][LANG]) || '';
+      card.appendChild(head); card.appendChild(desc);
+      body.appendChild(card);
+    });
+  });
+}
+
+/* ======================= AREA NAVIGATION ======================= */
+function showArea(id){
+  document.querySelectorAll('.area').forEach(area=>{
+    area.classList.remove('active');
+  });
+  document.querySelectorAll('.nav-btn').forEach(btn=>{
+    btn.classList.toggle('active', btn.dataset.area===id);
+  });
+  document.querySelector('[data-area-id="'+id+'"]').classList.add('active');
+  if(id==='area-interface'){ drawStage(); }
+}
+
+setLang('ar');
+renderPalette();
+renderAll();
+drawStage();
+showArea('area-interface');
+</script>
+</body>
+</html>
